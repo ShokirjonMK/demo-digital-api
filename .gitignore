@@ -6,7 +6,7 @@ protected/data/*.db
 themes/classic/views/
 vendor/
 config.inc.php
-config.boot.php
+# config.boot.php
 composer.lock
 .idea/
 api/web/index.php
