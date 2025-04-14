@@ -4,9 +4,6 @@ namespace api\controllers;
 
 use api\resources\AccessControl;
 use api\resources\User;
-use common\models\model\Kafedra;
-use common\models\model\TimeTable1;
-use common\models\model\TimetableDate;
 use Yii;
 use base\ResponseStatus;
 use yii\web\ForbiddenHttpException;
@@ -51,7 +48,6 @@ class FacultyController extends ApiController
             ->andWhere([$this->table_name . '.is_deleted' => 0])
             ->leftJoin("translate tr", "tr.model_id = $this->table_name.id and tr.table_name = '$this->table_name'")
             ->groupBy($this->table_name . '.id')
-//            ->andWhere(['tr.language' => Yii::$app->request->get('lang')])
             ->andFilterWhere(['like', 'tr.name', Yii::$app->request->get('query')]);
 
         // is Self 
@@ -59,28 +55,16 @@ class FacultyController extends ApiController
         // if (isRole('justice')) {
         // }
 
-        if (isRole('teacher')) {
-            $query->andWhere(['in' , $this->table_name .'.id' , TimetableDate::find()
-                ->select('faculty_id')
-                ->where([
-                    'user_id' => current_user_id(),
-                    'status' => 1,
-                    'is_deleted' => 0,
-                ])]);
-        } else {
-            $t = $this->isSelf(Faculty::USER_ACCESS_TYPE_ID);
-            if ($t['status'] == 1) {
-                $query->andWhere([
-                    $this->table_name . '.id' => $t['UserAccess']
-                ]);
-            } elseif ($t['status'] == 2) {
-                $query->andFilterWhere([
-                    'faculty.is_deleted' => -1
-                ]);
-            }
+        $t = $this->isSelf(Faculty::USER_ACCESS_TYPE_ID);
+        if ($t['status'] == 1) {
+            $query->where([
+                'in', $this->table_name . '.id', $t['UserAccess']->table_id
+            ])->all();
+        } elseif ($t['status'] == 2) {
+            $query->andFilterWhere([
+                'faculty.is_deleted' => -1
+            ]);
         }
-
-
 
 
         // filter
@@ -94,11 +78,42 @@ class FacultyController extends ApiController
         return $this->response(1, _e('Success'), $data);
     }
 
+    public function actionKpi($lang)
+    {
+        $model = new Faculty();
+
+        $query = $model->find()
+            ->with(['infoRelation'])
+            ->andWhere([$model->tableName() . '.is_deleted' => 0])
+            ->leftJoin("translate tr", "tr.model_id = $this->table_name.id and tr.table_name = '$this->table_name'")
+            ->andFilterWhere(['like', 'tr.name', Yii::$app->request->get('query')]);
+
+
+        if (!(isRole('admin') || isRole('monitoring') || isRole('rector') || isRole('comission'))) {
+            $query->andWhere(['user_id' => current_user_id()]);
+        }
+
+        // filter
+        $query = $this->filterAll($query, $model);
+
+        // sort
+        $query = $this->sort($query);
+
+        // data
+
+        // dd([$query->createCommand()->rawSql, $t['table_ids']]);
+        $data =  $this->getData($query);
+        return $this->response(1, _e('Success'), $data);
+    }
+
+
+
     public function actionCreate($lang)
     {
         $model = new Faculty();
         $post = Yii::$app->request->post();
         $this->load($model, $post);
+
         $result = Faculty::createItem($model, $post);
         if (!is_array($result)) {
             return $this->response(1, _e($this->controller_name . ' successfully created.'), $model, null, ResponseStatus::CREATED);

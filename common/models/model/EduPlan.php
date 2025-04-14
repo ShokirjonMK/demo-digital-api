@@ -3,19 +3,17 @@
 namespace common\models\model;
 
 use api\resources\ResourceTrait;
-use common\models\model\EduSemestr;
 use Yii;
 use yii\behaviors\TimestampBehavior;
-//use common\models\model\EduSemestr;
 
 /**
  * This is the model class for table "{{%edu_plan}}".
  *
  * @property int $id
- * @property string|null $second_end
- * @property string|null $second_start
- * @property string|null $first_end
- * @property string|null $first_start
+ * @property string|null $spring_end
+ * @property string|null $spring_start
+ * @property string|null $fall_end
+ * @property string|null $fall_start
  * @property int $course
  * @property int $semestr
  * @property int $edu_year_id
@@ -52,9 +50,6 @@ use yii\behaviors\TimestampBehavior;
 class EduPlan extends \yii\db\ActiveRecord
 {
 
-    const TYPE_AUTUMN = 1;
-    const TYPE_WINTER = 2;
-
     use ResourceTrait;
 
     public static $selected_language = 'uz';
@@ -77,32 +72,30 @@ class EduPlan extends \yii\db\ActiveRecord
     /**
      * {@inheritdoc}
      */
-
     public function rules()
     {
         return [
             [
                 [
                     'course',
+                    'semestr',
+                    'edu_year_id',
                     'faculty_id',
                     'direction_id',
                     'edu_type_id',
-                    'edu_form_id',
-                    'first_start',
-                    'first_end',
-                    'second_start',
-                    'second_end',
-                    'type'
+                    'fall_start',
+                    'fall_end',
+                    'spring_start',
+                    'spring_end'
                 ], 'required'
             ],
             [
                 [
                     'edu_form_id',
                     'course',
-                    'type',  // type qoshiladi kuzgi qabul(1),  qishgi qabul (2)
+                    'semestr',
                     'edu_year_id',
                     'faculty_id',
-                    'edu_form_id',
                     'direction_id',
                     'edu_type_id',
                     'order',
@@ -115,24 +108,9 @@ class EduPlan extends \yii\db\ActiveRecord
                 ], 'integer'
             ],
             [[
-                'first_start',
-                'first_end', 'second_start', 'second_end'
+                'fall_start',
+                'fall_end', 'spring_start', 'spring_end'
             ], 'safe'],
-            [
-                ['first_start'],
-                'compare',
-                'compareValue' => 'first_end',
-                'operator' => '<',
-                'message' => _e('The end time must be greater than the start time.')
-            ],
-            [
-                ['second_start'],
-                'compare',
-                'compareValue' => 'second_end',
-                'operator' => '<',
-                'message' => _e('The end time must be greater than the start time.')
-            ],
-
             [['direction_id'], 'exist', 'skipOnError' => true, 'targetClass' => Direction::className(), 'targetAttribute' => ['direction_id' => 'id']],
             [['edu_year_id'], 'exist', 'skipOnError' => true, 'targetClass' => EduYear::className(), 'targetAttribute' => ['edu_year_id' => 'id']],
             [['faculty_id'], 'exist', 'skipOnError' => true, 'targetClass' => Faculty::className(), 'targetAttribute' => ['faculty_id' => 'id']],
@@ -140,7 +118,6 @@ class EduPlan extends \yii\db\ActiveRecord
             [['edu_form_id'], 'exist', 'skipOnError' => true, 'targetClass' => EduForm::className(), 'targetAttribute' => ['edu_form_id' => 'id']],
         ];
     }
-
 
     /**
      * {@inheritdoc}
@@ -150,7 +127,7 @@ class EduPlan extends \yii\db\ActiveRecord
         return [
             'id' => 'ID',
             'course' => 'Course',
-            //            'semestr' => 'Semestr',
+            'semestr' => 'Semestr',
             'edu_year_id' => 'Edu Year ID',
             'faculty_id' => 'Faculty ID',
             'direction_id' => 'Direction ID',
@@ -178,16 +155,17 @@ class EduPlan extends \yii\db\ActiveRecord
                 return $model->translate->name ?? '';
             },
             'faculty_id',
+            'semestr',
             'edu_year_id',
             'direction_id',
             'edu_type_id',
             'edu_form_id',
             'course',
-            'type',
-            'first_start',
-            'first_end',
-            'second_start',
-            'second_end',
+            'semestr',
+            'fall_start',
+            'fall_end',
+            'spring_start',
+            'spring_end',
             'order',
             'status',
             'is_deleted',
@@ -212,7 +190,7 @@ class EduPlan extends \yii\db\ActiveRecord
 
             'eduSemestrs',
 
-            'activeSemestr',
+
             'student',
             'studentsByLang',
             'studentCount',
@@ -223,7 +201,6 @@ class EduPlan extends \yii\db\ActiveRecord
             'studentUz',
             'studentEng',
 
-            'group',
 
             'studentRu',
             'description',
@@ -255,26 +232,23 @@ class EduPlan extends \yii\db\ActiveRecord
 
     public function getInfoRelation()
     {
+        // self::$selected_language = array_value(admin_current_lang(), 'lang_code', 'en');
         return $this->hasMany(Translate::class, ['model_id' => 'id'])
             ->andOnCondition(['language' => Yii::$app->request->get('lang'), 'table_name' => $this->tableName()]);
     }
 
     public function getInfoRelationDefaultLanguage()
     {
+        // self::$selected_language = array_value(admin_current_lang(), 'lang_code', 'en');
         return $this->hasMany(Translate::class, ['model_id' => 'id'])
             ->andOnCondition(['language' => self::$selected_language, 'table_name' => $this->tableName()]);
     }
+
 
     public function getStudent()
     {
         return $this->hasMany(Student::className(), ['edu_plan_id' => 'id']);
     }
-
-    public function getGroup()
-    {
-        return $this->hasMany(Group::className(), ['edu_plan_id' => 'id'])->where(['is_deleted' => 0]);
-    }
-
     public function getStudentCount()
     {
         return count($this->student);
@@ -286,6 +260,7 @@ class EduPlan extends \yii\db\ActiveRecord
             "UZ"    => ['count' => count($this->studentUz)],
             "ENG"   => [count($this->studentEng)],
             "RU"    => [count($this->studentRu)],
+
         ];
     }
 
@@ -393,15 +368,9 @@ class EduPlan extends \yii\db\ActiveRecord
      *
      * @return \yii\db\ActiveQuery
      */
-
     public function getEduSemestrs()
     {
         return $this->hasMany(EduSemestr::className(), ['edu_plan_id' => 'id'])->where(['is_deleted' => 0]);
-    }
-
-    public function getActiveSemestr()
-    {
-        return $this->hasOne(EduSemestr::className(), ['edu_plan_id' => 'id'])->where(['is_deleted' => 0 , 'status' => 1]);
     }
 
     public static function createItem($model, $post)
@@ -422,16 +391,13 @@ class EduPlan extends \yii\db\ActiveRecord
                 'edu_type_id' => $model->edu_type_id,
                 'edu_form_id' => $model->edu_form_id,
                 'edu_year_id' => $model->edu_year_id,
-                'type' => $model->type,
                 'is_deleted' => 0
             ]);
-
-//            if ($eduPlan) {
-//                $errors[] = _e('This Edu Plan already exists');
-//                $transaction->rollBack();
-//                return simplify_errors($errors);
-//            }
-
+            if ($eduPlan) {
+                $errors[] = _e('This Edu Plan already exists');
+                $transaction->rollBack();
+                return simplify_errors($errors);
+            }
             if ($model->save()) {
                 if (isset($post['description'])) {
                     Translate::createTranslate($post['name'], $model->tableName(), $model->id, $post['description']);
@@ -439,153 +405,62 @@ class EduPlan extends \yii\db\ActiveRecord
                     Translate::createTranslate($post['name'], $model->tableName(), $model->id);
                 }
 
-//                $eduYear = [];
-
-                $year = EduYear::findOne(['id' => $model->edu_year_id]);
-                $maxYear = $year->start_year + $post['course']+1;
-                $newYear = EduYear::findOne([
-                    'start_year' => $maxYear,
-                    'type' => 2,
-                ]);
-
-                if (!isset($newYear)) {
-                    $yearResult = EduPlan::createYear($newYear);
-                    if (!$yearResult) {
-                        $errors[] = ['error' => _e('Year create error')];
-                        $transaction->rollBack();
-                        return simplify_errors($errors);
-                    }
-                }
-
-                if ($year->type == 1) {
-                    $type = 1;
-                } else {
-                    $type = 2;
-                }
-
+                $eduYear = [];
                 for ($i = 0; $i < $post['course']; $i++) {
-
-                    /* Adding First semestr */
+                    /* Kuzgi semestrni qo`shish */
                     $newEduSmester = new EduSemestr();
 
-                    if ($type == 1) {
-                        $newEduSmester->start_date = date('Y-m-d', strtotime('+' . $i . ' years', strtotime($post['first_start'])));
-                        $newEduSmester->end_date = date('Y-m-d', strtotime('+' . $i . ' years', strtotime($post['first_end'])));
-
-                        $queryYear = EduYear::findOne([
-                            'start_year' => $year->start_year + $i,
-                            'type' => $type
-                        ]);
-                        if (!isset($queryYear)) {
-                            $errors[] = ['edu_year_id' => _e('Edu Year not found.')];
-                        }
-
-                        $newEduSmester->edu_year_id = $queryYear->id;
-                    }
-                    if ($type == 2) {
-                        $newEduSmester->start_date = date('Y-m-d', strtotime('+' . $i . ' years', strtotime($post['second_start'])));
-                        $newEduSmester->end_date = date('Y-m-d', strtotime('+' . $i . ' years', strtotime($post['second_end'])));
-                        $queryYear = EduYear::findOne([
-                            'start_year' => $year->start_year + $i,
-                            'type' => $type
-                        ]);
-                        if (!isset($queryYear)) {
-                            $errors[] = ['edu_year_id' => _e('Edu Year not found')];
-                        }
-
-                        $newEduSmester->edu_year_id = $queryYear->id;
-                    }
-
+                    $newEduSmester->start_date = date('Y-m-d', strtotime('+' . $i . ' years', strtotime($post['fall_start'])));
+                    $newEduSmester->end_date = date('Y-m-d', strtotime('+' . $i . ' years', strtotime($post['fall_end'])));
                     $newEduSmester->edu_plan_id = $model->id;
-                    $newEduSmester->edu_type_id = $model->edu_type_id;
-                    $newEduSmester->edu_form_id = $model->edu_form_id;
-                    $newEduSmester->faculty_id = $model->faculty_id;
-                    $newEduSmester->direction_id = $model->direction_id;
                     $newEduSmester->course_id = $i + 1;
-                    $newEduSmester->type = $type;  //  kuzgi bahorgi qo'shildi
                     $newEduSmester->status = 0;
                     $newEduSmester->semestr_id = ($i + 1) * 2 - 1;
-//                    $eduYear[$i] = EduYear::find()
-//                        ->where(['start_year' => date('Y', strtotime($newEduSmester->start_date))])
-//                        ->one();
-//                    if (!isset($eduYear[$i])) {
-//                        $eduYear[$i] = new EduYear();
-//                        $data = [];
-//                        $eduYear[$i]->year = date('Y', strtotime($newEduSmester->start_date));
-//                        $eduYear[$i]->type = 1;
-//                        $data['name'][Yii::$app->request->get('lang')] = $eduYear[$i]->year . '-' . date('Y', strtotime('+1 years', strtotime($newEduSmester->start_date)));
-//                        $res = EduYear::createItem($eduYear[$i], $data);
-//                        if (is_array($res)) {
-//                            $errors[] = _e('Error on creating EduYear');
-//                        }
-//                    }
+                    $eduYear[$i] = EduYear::findOne(['year' => date('Y', strtotime($newEduSmester->start_date)), 'type' => 1]);
+                    if (!isset($eduYear[$i])) {
+                        $eduYear[$i] = new EduYear();
+                        $data = [];
+                        $eduYear[$i]->year = date('Y', strtotime($newEduSmester->start_date));
+                        $data['name'][Yii::$app->request->get('lang')] = $eduYear[$i]->year . '-' . date('Y', strtotime('+1 years', strtotime($newEduSmester->start_date)));
+                        $res = EduYear::createItem($eduYear[$i], $data);
+                        if (is_array($res)) {
+                            $errors[] = _e('Error on creating EduYear');
+                            // $model->delete();
+                            // return $res;
+                        }
+                    }
 
+                    $newEduSmester->edu_year_id = $eduYear[$i]->id;
 
-                    $newEduSmester->credit = 0;
-                    $newEduSmester->is_checked = 0;
-                    $newEduSmester->optional_subject_count = 0;
-                    $newEduSmester->required_subject_count = 0;
+                    $teacherCheckingType = TeacherCheckingType::findOne(['edu_year_id' => $newEduSmester->edu_year_id, 'semestr_id' => 1]);
+                    if ($teacherCheckingType) {
+                        $newEduSmester->type = $teacherCheckingType->type;
+                    }
 
-                    if (!($newEduSmester->validate())) {
+                    if (!$newEduSmester->validate()) {
                         $errors[] = $newEduSmester->errors;
                     }
-                    if (!$newEduSmester->save()) {
-                        $errors[] = _e('Creating on EduSemestr');
-                    }
+                    $newEduSmester->save();
+                    /* Kuzgi semestrni qo`shish */
 
-                    /* Adding Two semestr */
+                    /* Baxorgi semestrni qo`shish */
                     $newEduSmester1 = new EduSemestr();
-
-                    if ($type == 1) {
-                        $newEduSmester1->start_date = date('Y-m-d', strtotime('+' . $i . ' years', strtotime($post['second_start'])));
-                        $newEduSmester1->end_date = date('Y-m-d', strtotime('+' . $i . ' years', strtotime($post['second_end'])));
-                        $queryYear = EduYear::findOne([
-                            'start_year' => $year->start_year + $i,
-                            'type' => 2
-                        ]);
-                        if (!isset($queryYear)) {
-                            $errors[] = ['edu_year_id' => _e('Edu Year not found')];
-                        }
-
-                        $newEduSmester1->edu_year_id = $queryYear->id;
-                    }
-                    if ($type == 2) {
-                        $newEduSmester1->start_date = date('Y-m-d', strtotime('+' . $i . ' years', strtotime($post['first_start'])));
-                        $newEduSmester1->end_date = date('Y-m-d', strtotime('+' . $i . ' years', strtotime($post['first_end'])));
-
-                        $queryYear = EduYear::findOne([
-                            'start_year' => $year->start_year + $i + 1,
-                            'type' => 1
-                        ]);
-                        if (!isset($queryYear)) {
-                            $errors[] = ['edu_year_id' => _e('Edu Year not found')];
-                        }
-
-                        $newEduSmester1->edu_year_id = $queryYear->id;
-
-                    }
-
+                    $newEduSmester1->start_date = date('Y-m-d', strtotime('+' . $i . ' years', strtotime($post['spring_start'])));
+                    $newEduSmester1->end_date = date('Y-m-d', strtotime('+' . $i . ' years', strtotime($post['spring_end'])));
                     $newEduSmester1->edu_plan_id = $model->id;
-                    $newEduSmester1->edu_type_id = $model->edu_type_id;
-                    $newEduSmester1->edu_form_id = $model->edu_form_id;
-                    $newEduSmester1->faculty_id = $model->faculty_id;
-                    $newEduSmester1->direction_id = $model->direction_id;
                     $newEduSmester1->course_id = $i + 1;
-                    if ($model->type == 1) {
-                        $newEduSmester1->type = 2; //  type qo'shildi
-                    }
-                    if ($model->type == 2) {
-                        $newEduSmester1->type = 1; //  type qo'shildi
-                    }
                     $newEduSmester1->status = 0;
                     $newEduSmester1->semestr_id = ($i + 1) * 2;
 
-                    $newEduSmester1->credit = 1;
-                    $newEduSmester1->is_checked = 0;
-                    $newEduSmester1->optional_subject_count = 0;
-                    $newEduSmester1->required_subject_count = 0;
+                    $eduYear[$i] = EduYear::findOne(['year' => date('Y', strtotime($newEduSmester->start_date)), 'type' => 2]);
+                    $newEduSmester1->edu_year_id = $eduYear[$i]->id;
 
-                    if (!($newEduSmester1->validate())) {
+                    $teacherCheckingType = TeacherCheckingType::findOne(['edu_year_id' => $newEduSmester1->edu_year_id, 'semestr_id' => 1]);
+                    if ($teacherCheckingType) {
+                        $newEduSmester1->type = $teacherCheckingType->type;
+                    }
+
+                    if (!$newEduSmester1->validate()) {
                         $errors[] = $newEduSmester1->errors;
                     }
                     $newEduSmester1->save();
@@ -607,57 +482,6 @@ class EduPlan extends \yii\db\ActiveRecord
             $transaction->rollBack();
             return double_errors($errors, $has_error['errors']);
         }
-    }
-
-    public static function createYear($newYear) {
-
-        $transaction = Yii::$app->db->beginTransaction();
-        $errors = [];
-
-        $year = EduYear::find()
-            ->orderBy('id desc')
-            ->one();
-
-        if ($year->type == 1) {
-            $model = new EduYear();
-            $model->start_year = $year->start_year;
-            $model->end_year = $year->end_year;
-            $model->type = 2;
-            $model->status = 0;
-            if (!$model->save()){
-                $errors[] = ['error' => _e('Error saving data')];
-            }
-            $start_date = $model->end_year;
-        }
-        if ($year->type == 2) {
-            $start_date = $year->end_year;
-        }
-
-        for ($i=$start_date; $i<=$newYear; $i++) {
-            $model = new EduYear();
-            $model->start_year = $i;
-            $model->end_year = $i+1;
-            $model->type = 1;
-            $model->status = 0;
-            if (!$model->save()){
-                $errors[] = ['error' => _e('Error saving data')];
-            }
-
-            $model2 = new EduYear();
-            $model2->start_year = $i;
-            $model2->end_year = $i+1;
-            $model2->type = 2;
-            $model2->status = 0;
-            if (!$model2->save()){
-                $errors[] = ['error' => _e('Error saving data')];
-            }
-        }
-
-        if (count($errors) > 0) {
-            return false;
-        }
-        $transaction->commit();
-        return true;
     }
 
     public static function updateItem($model, $post)
@@ -689,17 +513,14 @@ class EduPlan extends \yii\db\ActiveRecord
             $transaction->rollBack();
             return double_errors($errors, $has_error['errors']);
         }
-
-
-
     }
 
     public function beforeSave($insert)
     {
         if ($insert) {
-            $this->created_by = current_user_id();
+            $this->created_by = Current_user_id();
         } else {
-            $this->updated_by = current_user_id();
+            $this->updated_by = Current_user_id();
         }
         return parent::beforeSave($insert);
     }

@@ -12,7 +12,6 @@ class m180121_120402_create_rbac_tables extends Migration
      * @return DbManager
      * @throws yii\base\InvalidConfigException
      */
-
     protected function getAuthManager()
     {
         $authManager = Yii::$app->getAuthManager();

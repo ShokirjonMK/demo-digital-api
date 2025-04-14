@@ -14,9 +14,11 @@ class AuthorCheck extends Behavior
     public $allowedRoles = [];
 
     public function init(){
+
         if(!$this->message ){
             $this->message = _e('You don\'t have access to do this action (author).');
         }
+
         if(empty($this->allowedRoles)){
             $this->allowedRoles = ['admin'];
         }

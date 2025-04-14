@@ -27,10 +27,6 @@ $main_config = array(
             'class' => 'yii\rbac\DbManager',
           //  'defaultRoles' => ['customer'],
         ],
-        'telegram' => [
-            'class' => 'aki\telegram\Telegram',
-            'botToken' => '7579908849:AAHS5N0IlcZLbt_ZHbI1WWrQU3wDrvei-cM',
-        ],
         'log' => [
             'traceLevel' => YII_DEBUG ? 3 : 0,
             'targets' => [

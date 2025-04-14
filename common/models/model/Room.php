@@ -7,10 +7,13 @@ use Yii;
 use yii\behaviors\TimestampBehavior;
 
 /**
- * This is the model class for table "room".
+ * This is the model class for table "{{%room}}".
  *
  * @property int $id
- * @property string $name
+ * @property int|null $type type education building or hostel or something
+ * @property int|null $gender room gender male 1 female 0
+ * @property int|null $empty_count bosh joylar soni
+ * @property float|null $price room price
  * @property int $building_id
  * @property int|null $order
  * @property int|null $status
@@ -19,15 +22,20 @@ use yii\behaviors\TimestampBehavior;
  * @property int $created_by
  * @property int $updated_by
  * @property int $is_deleted
+ * @property int $capacity
  *
  * @property Building $building
- * @property TimeTable1[] $timeTables
+ * @property TimeTable[] $timeTables
  */
 class Room extends \yii\db\ActiveRecord
 {
     public static $selected_language = 'uz';
 
     use ResourceTrait;
+
+
+    const TYPE_EDUCATIoN = 1;
+    const TYPE_HOSTEL = 2;
 
     public function behaviors()
     {
@@ -52,9 +60,9 @@ class Room extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['building_id','capacity'], 'required'],
-            [['room_size'], 'safe'],
-            [['building_id','room_type_id', 'capacity', 'order', 'status', 'created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted'], 'integer'],
+            [['type', 'gender', 'empty_count', 'building_id', 'order', 'status', 'created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted', 'capacity'], 'integer'],
+            [['price'], 'number'],
+            [['building_id'], 'required'],
             [['building_id'], 'exist', 'skipOnError' => true, 'targetClass' => Building::className(), 'targetAttribute' => ['building_id' => 'id']],
         ];
     }
@@ -66,13 +74,17 @@ class Room extends \yii\db\ActiveRecord
     {
         return [
             'id' => 'ID',
-            //            'name' => 'Name',
+            'type' => 'Type', //'type education building or hostel or something',
+            'gender' => 'Gender', // 'room gender male 1 female 0',
+            'empty_count' => 'Empty Count', // 'bosh joylar soni',
+            'price' => 'room price',
+            // 'name' => 'Name',
             'building_id' => 'Building ID',
             'capacity' => 'capacity',
             'order' => _e('Order'),
             'status' => _e('Status'),
             'created_at' => _e('Created At'),
-            'updated_at' => _e('Upd ated At'),
+            'updated_at' => _e('Updated At'),
             'created_by' => _e('Created By'),
             'updated_by' => _e('Updated By'),
             'is_deleted' => _e('Is Deleted'),
@@ -86,59 +98,37 @@ class Room extends \yii\db\ActiveRecord
             'name' => function ($model) {
                 return $model->translate->name ?? '';
             },
+            'type',
+            'gender',
+            'empty_count',
+            'price',
             'building_id',
             'capacity',
-            'room_type'=> function ($model) {
-                return $model->roomtype;
-            },
-            'room_size',
-            'room_type_id',
             'order',
             'status',
             'created_at',
             'updated_at',
             'created_by',
             'updated_by',
+            'is_deleted',
+
 
         ];
 
         return $fields;
     }
 
-    /**
-     * Gets query for [[Building]].
-     *
-     * @return \yii\db\ActiveQuery
-     */
-
-    public function getBuilding()
-    {
-        return $this->hasOne(Building::className(), ['id' => 'building_id']);
-    }
-
-    public function getRoomtype()
-    {
-        return $this->hasOne(RoomType::className(), ['id' => 'room_type_id']);
-    }
-
-    /**
-     * Gets query for [[TimeTables]].
-     *
-     * @return \yii\db\ActiveQuery
-     */
-
-    public function getTimeTables()
-    {
-        return $this->hasMany(TimeTable1::className(), ['room_id' => 'id']);
-    }
-
     public function extraFields()
     {
         $extraFields =  [
             'building',
-            'roomtype',
             'timeTables',
             'description',
+            'hostelStudentCount',
+            'hostelStudens',
+            'hostelStudentsCount',
+            'busyCount',
+
             'createdBy',
             'updatedBy',
             'createdAt',
@@ -146,6 +136,26 @@ class Room extends \yii\db\ActiveRecord
         ];
 
         return $extraFields;
+    }
+
+    /**
+     * Gets query for [[Building]].
+     *
+     * @return \yii\db\ActiveQuery
+     */
+    public function getBuilding()
+    {
+        return $this->hasOne(Building::className(), ['id' => 'building_id']);
+    }
+
+    /**
+     * Gets query for [[TimeTables]].
+     *
+     * @return \yii\db\ActiveQuery
+     */
+    public function getTimeTables()
+    {
+        return $this->hasMany(TimeTable::className(), ['room_id' => 'id']);
     }
 
     public function getTranslate()
@@ -174,6 +184,41 @@ class Room extends \yii\db\ActiveRecord
         // self::$selected_language = array_value(admin_current_lang(), 'lang_code', 'en');
         return $this->hasMany(Translate::class, ['model_id' => 'id'])
             ->andOnCondition(['language' => self::$selected_language, 'table_name' => $this->tableName()]);
+    }
+
+    public function getHostelStudents()
+    {
+        return $this->hasMany(HostelStudentRoom::class, ['room_id' => 'id'])->onCondition(['is_deleted' => 0, 'archived' => 0]);
+    }
+
+    public function getHostelStudentsCount()
+    {
+        return $this->getHostelStudent()->count();
+    }
+
+    public function getHostelStudentCount()
+    {
+        return HostelStudentRoom::find()
+            ->where(['room_id'=> $this->id])
+            ->andWhere(['is_deleted' => 0])
+            ->andWhere(['archived' => 0])
+            ->count();
+    }
+
+    /**
+     * Gets the count of busy (occupied) hostel student rooms for the current room ID.
+     *
+     * @return int The count of busy hostel student rooms.
+     */
+    public function getBusyCount()
+    {
+        return HostelStudentRoom::find()
+            ->where([
+                'room_id' => $this->id,
+                'is_deleted' => 0,
+                'status' => 1
+            ])
+            ->count();
     }
 
 
@@ -239,9 +284,9 @@ class Room extends \yii\db\ActiveRecord
     public function beforeSave($insert)
     {
         if ($insert) {
-            $this->created_by = current_user_id();
+            $this->created_by = Current_user_id();
         } else {
-            $this->updated_by = current_user_id();
+            $this->updated_by = Current_user_id();
         }
         return parent::beforeSave($insert);
     }

@@ -28,7 +28,7 @@ class ExamsTypeController extends ApiActiveController
         $query = $model->find()
             ->with(['infoRelation'])
             ->andWhere([$this->table_name . '.is_deleted' => 0])
-//            ->andWhere([$this->table_name . '.status' => 1])
+            ->andWhere([$this->table_name . '.status' => 1])
             ->leftJoin("translate tr", "tr.model_id = $this->table_name.id and tr.table_name = '$this->table_name'")
             ->groupBy($this->table_name . '.id')
             ->andFilterWhere(['like', 'tr.name', Yii::$app->request->get('query')]);

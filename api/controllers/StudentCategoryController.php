@@ -32,7 +32,7 @@ class StudentCategoryController extends ApiActiveController
             // ->join("INNER JOIN", "translate tr", "tr.model_id = $this->table_name.id and tr.table_name = '$this->table_name'" )
             ->leftJoin("translate tr", "tr.model_id = $this->table_name.id and tr.table_name = '$this->table_name'")
             ->groupBy($this->table_name . '.id')
-//             ->andWhere(['tr.language' => Yii::$app->request->get('lang')])
+            // ->andWhere(['tr.language' => Yii::$app->request->get('lang')])
             // ->andWhere(['tr.tabel_name' => 'faculty'])
             ->andFilterWhere(['like', 'tr.name', Yii::$app->request->get('query')]);
 

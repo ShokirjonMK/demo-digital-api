@@ -30,10 +30,7 @@ class SiteController extends FrontendController
             ],
         ];
     }
-    public function actionIndex()
-    {
-            return 1;
-    }
+
     /**
      * Displays homepage
      *

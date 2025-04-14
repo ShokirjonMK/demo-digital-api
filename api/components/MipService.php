@@ -2,8 +2,10 @@
 
 namespace api\components;
 
-use SoapClient;
-use SoapFault;
+use GuzzleHttp\Client;
+
+// use SoapClient;
+// use SoapFault;
 
 class MipService
 {
@@ -186,5 +188,23 @@ class MipService
             }
         }
         return true;
+    }
+    protected function token()
+    {
+        $client = new Client();
+        $headers = [
+            'Content-Type' => 'application/json',
+            'Authorization' => 'Basic ' . htmlspecialchars('TV9mTTFmNWZ4ZFMwWFhqQkJMQkg3OWNKOGtJYTpWaE9PQlBycFBpUElfRzAwY2xzMEVOUDVmclVh')
+        ];
+        $grant_type = htmlspecialchars('password');
+        $username = htmlspecialchars('justice-user2');
+        $password = htmlspecialchars('KN8akqXsEg');
+        try {
+            $request = new Request('POST', 'https://iskm.egov.uz:9444/oauth2/token?grant_type=' . $grant_type . '&username=' . $username . '&password=' . $password, $headers);
+            $res = $client->sendAsync($request)->wait();
+            echo $res->getBody();
+        } catch (Exception $e) {
+            echo 'Error: ' . $e->getMessage();
+        }
     }
 }

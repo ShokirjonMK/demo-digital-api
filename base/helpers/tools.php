@@ -7,18 +7,12 @@ function rawsql($query)
     echo '</pre>';
     die;
 }
-
-function custom_shuffle($my_array = array()) {
-    $copy = array();
-    while (count($my_array)) {
-        // takes a rand array elements by its key
-        $element = array_rand($my_array);
-        // assign the array and its value to an another array
-        $copy[$element] = $my_array[$element];
-        //delete the element from source array
-        unset($my_array[$element]);
-    }
-    return $copy;
+function sqlraw($query)
+{
+    echo '<pre>';
+    print_r($query->createCommand()->rawsql);
+    echo '</pre>';
+    die;
 }
 
 function dd($array)
@@ -27,15 +21,6 @@ function dd($array)
     print_r($array);
     echo '</pre>';
     die;
-}
-
-function searchInArray($element, $array) {
-    foreach ($array as $item) {
-        if ($item == $element) {
-            return true;
-        }
-    }
-    return false;
 }
 
 // Code debug
@@ -503,18 +488,31 @@ function getIpAddressData($ip_address = null)
 // Is IP in allowed  List
 function checkAllowedIP()
 {
+    // return true;
     $userIp = getIpMK();
-
+    // dd($userIp);
     $ado = '172.25';
+    $darxon = '172.31';
     // $ado = '10.1.2';
-    $allowedIps = [
-        '195.158.3.204',
-        // '195.158.24.189',
-    ];
+    // $allowedIps = [
+    //     '195.158.3.204',
+    //     // '195.158.24.189',
+    // ];
 
-    if (in_array($userIp, $allowedIps)) {
+    // if (in_array($userIp, $allowedIps)) {
+    //     return true;
+    // } else
+    if (str_starts_with($userIp, $ado)) {
         return true;
-    } elseif (str_starts_with($userIp, $ado)) {
+    } elseif (str_starts_with($userIp, $darxon)) {
+        return true;
+    } elseif ($userIp == '127.0.0.1') {
+        return true;
+    } elseif ($userIp == '10.189.229.62') {
+        return true;
+    } elseif ($userIp == '10.189.229.49') {
+        return true;
+    } elseif ($userIp == '10.189.229.48') {
         return true;
     }
 

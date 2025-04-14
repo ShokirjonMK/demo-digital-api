@@ -12,56 +12,62 @@ class m211021_142749_profile_table extends Migration
      */
     public function safeUp()
     {
+        $tableOptions = null;
+        if ($this->db->driverName === 'mysql') {
+            // https://stackoverflow.com/questions/51278467/mysql-collation-utf8mb4-unicode-ci-vs-utf8mb4-default-collation
+            // https://www.eversql.com/mysql-utf8-vs-utf8mb4-whats-the-difference-between-utf8-and-utf8mb4/
+            $tableOptions = 'CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci ENGINE=InnoDB';
+        }
         $this->createTable('profile', [
             'id' => $this->primaryKey(),
-            'user_id'=>$this->integer()->notNull(),
-            'image'=>$this->string(255)->notNull(),
-            'phone'=>$this->string(50)->notNull(),
-            'phone_secondary'=>$this->string(50)->notNull(),
-            'is_foreign'=>$this->integer()->notNull(),
-            'last_name'=>$this->string(255)->notNull(),
-            'first_name'=>$this->string(255)->notNull(),
-            'middle_name'=>$this->string(255)->notNull(),
-            'passport_seria'=>$this->string(255)->notNull(),
-            'passport_number'=>$this->string(255)->notNull(),
-            'passport_pin'=>$this->string(255)->notNull(),
-            'birthday'=>$this->integer()->notNull(),
-            'passport_file'=>$this->string(255)->notNull(),
-            'country_id'=>$this->integer()->notNull(),
-            'region_id'=>$this->integer()->notNull(),
-            'area_id'=>$this->integer()->notNull(),
-            'address'=>$this->string(255)->notNull(),
-            'gender'=>$this->integer()->notNull(),
-            'passport_given_date'=>$this->date()->notNull(),
-            'passport_issued_date'=>$this->date()->notNull(),
-            'passport_given_by'=>$this->string(255)->notNull(),
-            'permanent_country_id'=>$this->integer()->notNull(),
-            'permanent_region_id'=>$this->integer()->notNull(),
-            'permanent_area_id'=>$this->integer()->notNull(),
-            'permanent_address'=>$this->string(255)->notNull(),
+            'user_id' => $this->integer()->notNull(),
+            'image' => $this->string(255)->notNull(),
+            'phone' => $this->string(50)->notNull(),
+            'phone_secondary' => $this->string(50)->notNull(),
+            'is_foreign' => $this->integer()->notNull(),
+            'last_name' => $this->string(255)->notNull(),
+            'first_name' => $this->string(255)->notNull(),
+            'middle_name' => $this->string(255)->notNull(),
+            'passport_seria' => $this->string(255)->notNull(),
+            'passport_number' => $this->string(255)->notNull(),
+            'passport_pin' => $this->string(255)->notNull(),
+            'birthday' => $this->date()->null(),
+            'passport_file' => $this->string(255)->notNull(),
+            'country_id' => $this->integer()->notNull(),
+            'region_id' => $this->integer()->notNull(),
+            'area_id' => $this->integer()->notNull(),
+            'address' => $this->string(255)->notNull(),
+            'gender' => $this->integer()->notNull(),
+            'passport_given_date' => $this->date()->notNull(),
+            'passport_issued_date' => $this->date()->notNull(),
+            'passport_given_by' => $this->string(255)->notNull(),
+            'permanent_country_id' => $this->integer()->notNull(),
+            'permanent_region_id' => $this->integer()->notNull(),
+            'permanent_area_id' => $this->integer()->notNull(),
+            'permanent_address' => $this->string(255)->notNull(),
 
+            'has_disability' => $this->integer()->notNull()->defaultValue(0)->comment("nogirognligi bormi"),
+            'underprivileged' => $this->integer()->notNull()->defaultValue(0)->comment("kam ta'minlangan"),
+            'house_of_kindness' => $this->integer()->notNull()->defaultValue(0)->comment("Mehribonlik uyi"),
 
-
-            'order'=>$this->tinyInteger(1)->defaultValue(1),
+            'order' => $this->tinyInteger(1)->defaultValue(1),
             'status' => $this->tinyInteger(1)->defaultValue(1),
-            'created_at'=>$this->integer()->notNull(),
-            'updated_at'=>$this->integer()->notNull(),
+            'created_at' => $this->integer()->notNull(),
+            'updated_at' => $this->integer()->notNull(),
             'created_by' => $this->integer()->notNull()->defaultValue(0),
             'updated_by' => $this->integer()->notNull()->defaultValue(0),
             'is_deleted' => $this->tinyInteger()->notNull()->defaultValue(0),
-        ]);
+        ], $tableOptions);
 
 
-        $this->addForeignKey('up_profile_user_id','profile','user_id','users','id');
-        $this->addForeignKey('cp_profile_country_id','profile','country_id','countries','id');
-        $this->addForeignKey('rp_profile_region_id','profile','region_id','region','id');
-        $this->addForeignKey('ap_profile_area_id','profile','area_id','area','id');
+        $this->addForeignKey('up_profile_user_id', 'profile', 'user_id', 'users', 'id');
+        $this->addForeignKey('cp_profile_country_id', 'profile', 'country_id', 'countries', 'id');
+        $this->addForeignKey('rp_profile_region_id', 'profile', 'region_id', 'region', 'id');
+        $this->addForeignKey('ap_profile_area_id', 'profile', 'area_id', 'area', 'id');
 
-        $this->addForeignKey('cp_profile_permanent_country_id','profile','permanent_country_id','countries','id');
-        $this->addForeignKey('rp_profile_permanent_region_id','profile','permanent_region_id','region','id');
-        $this->addForeignKey('ap_profile_permanent_area_id','profile','permanent_area_id','area','id');
-
-
+        $this->addForeignKey('cp_profile_permanent_country_id', 'profile', 'permanent_country_id', 'countries', 'id');
+        $this->addForeignKey('rp_profile_permanent_region_id', 'profile', 'permanent_region_id', 'region', 'id');
+        $this->addForeignKey('ap_profile_permanent_area_id', 'profile', 'permanent_area_id', 'area', 'id');
     }
 
     /**
@@ -69,14 +75,14 @@ class m211021_142749_profile_table extends Migration
      */
     public function safeDown()
     {
-        $this->dropForeignKey('up_profile_user_id','profile');
-        $this->dropForeignKey('cp_profile_country_id','profile');
-        $this->dropForeignKey('rp_profile_region_id','profile');
-        $this->dropForeignKey('ap_profile_area_id','profile');
+        $this->dropForeignKey('up_profile_user_id', 'profile');
+        $this->dropForeignKey('cp_profile_country_id', 'profile');
+        $this->dropForeignKey('rp_profile_region_id', 'profile');
+        $this->dropForeignKey('ap_profile_area_id', 'profile');
 
-        $this->dropForeignKey('cp_profile_permanent_country_id','profile');
-        $this->dropForeignKey('rp_profile_permanent_region_id','profile');
-        $this->dropForeignKey('ap_profile_permanent_area_id','profile');
+        $this->dropForeignKey('cp_profile_permanent_country_id', 'profile');
+        $this->dropForeignKey('rp_profile_permanent_region_id', 'profile');
+        $this->dropForeignKey('ap_profile_permanent_area_id', 'profile');
         $this->dropTable('profile');
     }
 

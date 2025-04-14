@@ -102,7 +102,7 @@ class LoginHistory extends \yii\db\ActiveRecord
 
     public function extraFields()
     {
-        $extraFields =  [
+        $extraFields = [
             //            'department',
             'createdBy',
             'updatedBy',
@@ -182,14 +182,35 @@ class LoginHistory extends \yii\db\ActiveRecord
     }
 
 
+//    public function beforeSaves($insert)
+//    {
+//        if ($insert) {
+//            $this->created_by = Current_user_id();
+//            $this->created_on = date("Y-m-d H:i:s");
+//        } else {
+//            $this->updated_by = Current_user_id();
+//        }
+//
+//        //update profile medel 'last_in = created_on' find user_id
+//        return parent::beforeSave($insert);
+//    }
+
     public function beforeSave($insert)
     {
         if ($insert) {
-            $this->created_by = current_user_id();
+            $this->created_by = Current_user_id();
             $this->created_on = date("Y-m-d H:i:s");
+            // Update profile model with last login time
+            $profile = Profile::findOne(['user_id' => $this->user_id]);
+            if ($profile) {
+                $profile->last_in = $this->created_on;
+                $profile->save(false);
+            }
         } else {
-            $this->updated_by = current_user_id();
+            $this->updated_by = Current_user_id();
         }
+
         return parent::beforeSave($insert);
     }
+
 }

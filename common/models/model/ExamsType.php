@@ -26,8 +26,6 @@ class ExamsType extends \yii\db\ActiveRecord
 
     public static $selected_language = 'uz';
 
-    const FINAL_EXAM = 3;
-
     use ResourceTrait;
 
     public function behaviors()

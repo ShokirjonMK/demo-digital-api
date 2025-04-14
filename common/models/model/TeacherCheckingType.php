@@ -20,8 +20,8 @@ use yii\behaviors\TimestampBehavior;
  * @property int $created_by
  * @property int $updated_by
  * @property int $is_deleted
-// * @property int $edu_year_id
-// * @property int $semestr_id
+ * @property EduYear $edu_year_id
+ * @property Semestr $semestr_id
  */
 class TeacherCheckingType extends \yii\db\ActiveRecord
 {
@@ -177,9 +177,9 @@ class TeacherCheckingType extends \yii\db\ActiveRecord
     public function beforeSave($insert)
     {
         if ($insert) {
-            $this->created_by = current_user_id();
+            $this->created_by = Current_user_id();
         } else {
-            $this->updated_by = current_user_id();
+            $this->updated_by = Current_user_id();
         }
         return parent::beforeSave($insert);
     }

@@ -14,14 +14,13 @@ $main_config = array(
     'basePath' => dirname(__DIR__),
     'controllerNamespace' => 'api\controllers',
     'params' => $params,
-//    'bootstrap' => ['gii'],
-//    'modules' => [
-//        'gii' => [
-//            'class' => 'yii\gii\Module',
-//            'allowedIPs' => ['*'] // adjust this to your needs
-//          ],
-//    ],
     'components' => [
+        'cache' => [
+            'class' => 'yii\caching\FileCache', // You can choose other cache classes like 'yii\caching\DbCache'
+            // Other cache configuration options...
+        ],
+        // Other components...
+
         'request' => [
             'parsers' => [
                 'application/json' => 'yii\web\JsonParser',
@@ -31,10 +30,26 @@ $main_config = array(
         'response' => [
             'format' =>  \yii\web\Response::FORMAT_JSON
         ],
-//        'telegram' => [
-//            'class' => 'aki\telegram\Telegram',
-//            'botToken' => '7176000262:AAFyAKqLshC2FONHE1YARKCRIWCrtmxW76g',
-//        ],
+        'telegram' => [
+            'class' => 'aki\telegram\Telegram',
+            // 'webHook' => true,
+            // 'webHook' => [
+            //     'url' => 'https://api-digital.tsul.uz/bot',
+            // ],
+            'botToken' => '5268005235:AAHo7-xdDMnGcfGL2vdMrzXMWhRfGa88_yk',
+        ],
+        /*  'telegram' => [
+            'class' => 'aki\telegram\Telegram',
+            'webHook' => [
+                'url' => 'https://api-digital.tsul.uz/bot', // Your webhook URL
+                // Add other webhook options if needed
+            ],
+            'botToken' => '5268005235:AAHo7-xdDMnGcfGL2vdMrzXMWhRfGa88_yk',
+            'commands' => [
+                // Your commands here
+            ],
+        ], */
+
         'user' => [
             'identityClass' => 'common\models\User',
             'enableSession' => false,
@@ -46,7 +61,6 @@ $main_config = array(
             ],
         ],
         'urlManager' => [
-//            'class' => 'yii\web\UrlManager',
             'enablePrettyUrl' => true,
             'enableStrictParsing' => true,
             'showScriptName' => false,

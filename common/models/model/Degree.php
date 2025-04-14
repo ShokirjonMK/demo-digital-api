@@ -10,6 +10,9 @@ use yii\behaviors\TimestampBehavior;
  * This is the model class for table "degree".
  *
  * @property int $id
+ * @property string $name
+ * @property string $name_ru
+ * @property string $name_en
  * @property int|null $order
  * @property int|null $status
  * @property int $created_at
@@ -45,7 +48,20 @@ class Degree extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
+            [
+                [
+                    'name',
+                    'name_ru',
+                    'name_en',
+                ], 'string', 'max' => 255
+            ],
+            [
+                [
+                    'description',
+                ], 'string'
+            ],
             [['order', 'status', 'created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted'], 'integer'],
+
         ];
     }
 
@@ -56,6 +72,10 @@ class Degree extends \yii\db\ActiveRecord
     {
         return [
             'id' => 'ID',
+            'name' => 'Name',
+            'name_ru' => 'Name ru',
+            'name_en' => 'Name en',
+            'description' => 'Description',
             'order' => _e('Order'),
             'status' => _e('Status'),
             'created_at' => _e('Created At'),
@@ -70,9 +90,9 @@ class Degree extends \yii\db\ActiveRecord
     {
         $fields =  [
             'id',
-            'name' => function ($model) {
-                return $model->translate->name ?? '';
-            },
+            'name',
+            'name_ru',
+            'name_en',
             'order',
             'status',
             'created_at',
@@ -84,40 +104,6 @@ class Degree extends \yii\db\ActiveRecord
 
         return $fields;
     }
-
-    public function extraFields()
-    {
-        $extraFields =  [
-            'description',
-            'createdBy',
-            'updatedBy',
-            'createdAt',
-            'updatedAt',
-        ];
-
-        return $extraFields;
-    }
-
-    public function getDescription()
-    {
-        return $this->translate->description ?? '';
-    }
-
-    public function getInfoRelation()
-    {
-        // self::$selected_language = array_value(admin_current_lang(), 'lang_code', 'en');
-        return $this->hasMany(Translate::class, ['model_id' => 'id'])
-            ->andOnCondition(['language' => Yii::$app->request->get('lang'), 'table_name' => $this->tableName()]);
-    }
-    public function getTranslate()
-    {
-        if (Yii::$app->request->get('self') == 1) {
-            return $this->infoRelation[0];
-        }
-        return $this->infoRelation[0] ?? $this->infoRelationDefaultLanguage[0];
-    }
-
-
     public static function createItem($model, $post)
     {
         $transaction = Yii::$app->db->beginTransaction();
@@ -125,24 +111,12 @@ class Degree extends \yii\db\ActiveRecord
         if (!($model->validate())) {
             $errors[] = $model->errors;
         }
-        $has_error = Translate::checkingAll($post);
-
-        if ($has_error['status']) {
-            if ($model->save()) {
-                if (isset($post['description'])) {
-                    Translate::createTranslate($post['name'], $model->tableName(), $model->id, $post['description']);
-                } else {
-                    Translate::createTranslate($post['name'], $model->tableName(), $model->id);
-                }
-                $transaction->commit();
-                return true;
-            } else {
-                $transaction->rollBack();
-                return simplify_errors($errors);
-            }
+        if ($model->save()) {
+            $transaction->commit();
+            return true;
         } else {
             $transaction->rollBack();
-            return double_errors($errors, $has_error['errors']);
+            return simplify_errors($errors);
         }
     }
 
@@ -153,25 +127,12 @@ class Degree extends \yii\db\ActiveRecord
         if (!($model->validate())) {
             $errors[] = $model->errors;
         }
-        $has_error = Translate::checkingUpdate($post);
-        if ($has_error['status']) {
-            if ($model->save()) {
-                if (isset($post['name'])) {
-                    if (isset($post['description'])) {
-                        Translate::updateTranslate($post['name'], $model->tableName(), $model->id, $post['description']);
-                    } else {
-                        Translate::updateTranslate($post['name'], $model->tableName(), $model->id);
-                    }
-                }
-                $transaction->commit();
-                return true;
-            } else {
-                $transaction->rollBack();
-                return simplify_errors($errors);
-            }
+        if ($model->save()) {
+            $transaction->commit();
+            return true;
         } else {
             $transaction->rollBack();
-            return double_errors($errors, $has_error['errors']);
+            return simplify_errors($errors);
         }
     }
 

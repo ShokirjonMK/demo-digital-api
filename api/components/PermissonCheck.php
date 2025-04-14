@@ -34,11 +34,7 @@ class PermissonCheck extends Behavior
 
     public function beforeAction($event)
     {
-        // \Yii::$app->user->identity->roleItem
-
-//         dd(\Yii::$app->user->identity->attach_role);
-
-        if (!in_array(\Yii::$app->user->identity->attach_role, $this->allowedRoles)) {
+        if (!in_array(\Yii::$app->user->identity->roleItem, $this->allowedRoles)) {
             if (!\Yii::$app->user->can($this->permission)) {
                 throw new ForbiddenHttpException($this->message);
             }

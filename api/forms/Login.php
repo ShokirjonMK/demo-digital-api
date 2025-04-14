@@ -52,14 +52,13 @@ class Login extends Model
      */
     public function authorize()
     {
-
         if ($this->validate()) {
             $user = $this->getUser();
 
             if ($user) {
                 $user->generateAccessToken();
                 $user->access_token_time = time();
-                $user->save(false);
+                $user->save();
                 return ['is_ok' => true, 'user' => $user];
             } else {
                 return ['is_ok' => false, 'errors' => [_e('User not found')]];
@@ -95,39 +94,14 @@ class Login extends Model
                 $user = $result['user'];
                 if ($user->status === User::STATUS_ACTIVE) {
                     $profile = $user->profile;
-
-                    $roleResult = $user->getLoginRolesNoStudent();
-                    if (isset($roleResult['active_role'])) {
-                        $activeRole = $roleResult['active_role'];
-                    } else {
-                        $activeRole = "";
-                    }
-                    User::attachRole($activeRole , $user->id);
-
-                    if (isset($roleResult['all_roles'])) {
-                        $roles = $roleResult['all_roles'];
-                    } else {
-                        $roles = "";
-                    }
-
-                    if (isset($roleResult['permission'])) {
-                        $permissions = $roleResult['permission'];
-                    } else {
-                        $permissions = "";
-                    }
-
                     $data = [
                         'user_id' => $user->id,
                         'username' => $user->username,
                         'last_name' => $profile->last_name,
                         'first_name' => $profile->first_name,
-                        'avatar' => $profile->image,
-                        'active_role' => $activeRole,
-                        'role' => $roles,
-//                        'role' => $user->getRoles(),
+                        'role' => $user->getRoles(),
                         'oferta' => $user->getOfertaIsComformed(),
-                        'permissions' => $permissions,
-//                        'permissions' => $user->permissionsAll,
+                        'permissions' => $user->permissionsAll,
                         'access_token' => $user->access_token,
                         'expire_time' => date("Y-m-d H:i:s", $user->expireTime),
                     ];
@@ -148,7 +122,8 @@ class Login extends Model
         }
     }
 
-    public static function loginMain($model, $post) {
+    public static function loginMain($model, $post)
+    {
         $data = null;
         $errors = [];
         if ($model->load($post, '')) {
@@ -157,43 +132,31 @@ class Login extends Model
                 $user = $result['user'];
                 if ($user->status === User::STATUS_ACTIVE) {
                     $profile = $user->profile;
-
-                    $roleResult = $user->getRolesNoStudent();
-                    if (isset($roleResult['active_role'])) {
-                        $activeRole = $roleResult['active_role'];
-                    } else {
-                        $activeRole = "";
-                    }
-                    User::attachRole($activeRole , $user->id);
-
-                    if (isset($roleResult['all_roles'])) {
-                        $roles = $roleResult['all_roles'];
-                    } else {
-                        $roles = "";
-                    }
-
-                    if (isset($roleResult['permission'])) {
-                        $permissions = $roleResult['permission'];
-                    } else {
-                        $permissions = "";
-                    }
-
                     $data = [
                         'user_id' => $user->id,
                         'username' => $user->username,
                         'last_name' => $profile->last_name,
                         'first_name' => $profile->first_name,
-                        'avatar' => $profile->image,
-                        'active_role' => $activeRole,
-                        'role' => $roles,
-//                        'role' => $user->getRolesNoStudent(),
+                        'role' => $user->getRolesNoStudent(),
                         'oferta' => $user->getOfertaIsComformed(),
-//                        'is_changed' => $user->is_changed,
-//                        'permissions' => $user->permissionsNoStudent,
-                        'permissions' => $permissions,
+                        'is_changed' => $user->is_changed,
+                        'permissions' => $user->permissionsNoStudent,
                         'access_token' => $user->access_token,
                         'expire_time' => date("Y-m-d H:i:s", $user->expireTime),
+
+                        // 'not_checked_count' => $user->getNotCheckedCount()
                     ];
+
+                    // Check if the user is a teacher and add not checked count
+
+
+                    // Check if the user is a teacher and add not checked count
+                    if (in_array('teacher', $user->getRolesNoStudent())) {
+                        //     $data['not_checked_count'] = $user->getNotCheckedCount();
+                        // }
+                        // if (isRole('teacher')) {
+                        $data['not_checked_count'] = $user->getNotCheckedCount($user->id);
+                    }
                 } else {
                     $errors[] = [_e('User is not active.')];
                 }
@@ -219,33 +182,21 @@ class Login extends Model
             $result = $model->authorize();
             if ($result['is_ok']) {
                 $user = $result['user'];
-                if ($user->getIsRoleStudent()) {
-                    if ($user->status === User::STATUS_ACTIVE) {
-                        $profile = $user->profile;
-
-                        if ($user->attach_role == null) {
-                            $user->attach_role = 'student';
-                            $user->save(false);
-                        }
-
-                        $data = [
-                            'user_id' => $user->id,
-                            'username' => $user->username,
-                            'last_name' => $profile->last_name,
-                            'first_name' => $profile->first_name,
-                            'avatar' => $profile->image,
-                            'role' => $user->getRolesStudent(),
-                            'oferta' => $user->getOfertaIsComformed(),
-                            'edu_form' => $user->student->eduForm,
-                            'permissions' => $user->permissionsStudent,
-                            'access_token' => $user->access_token,
-                            'expire_time' => date("Y-m-d H:i:s", $user->expireTime),
-                        ];
-                    } else {
-                        $errors[] = [_e('User is not active.')];
-                    }
+                if ($user->status === User::STATUS_ACTIVE) {
+                    $profile = $user->profile;
+                    $data = [
+                        'user_id' => $user->id,
+                        'username' => $user->username,
+                        'last_name' => $profile->last_name,
+                        'first_name' => $profile->first_name,
+                        'role' => $user->getRolesStudent(),
+                        'oferta' => $user->getOfertaIsComformed(),
+                        'permissions' => $user->permissionsStudent,
+                        'access_token' => $user->access_token,
+                        'expire_time' => date("Y-m-d H:i:s", $user->expireTime),
+                    ];
                 } else {
-                    $errors[] = [_e('Permission not granted.')];
+                    $errors[] = [_e('User is not active.')];
                 }
             } else {
                 $errors[] = $result['errors'];

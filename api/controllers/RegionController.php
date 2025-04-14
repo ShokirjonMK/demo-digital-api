@@ -2,7 +2,7 @@
 
 namespace api\controllers;
 
-use common\models\model\Regions;
+use common\models\model\Region;
 use Yii;
 use base\ResponseStatus;
 
@@ -20,13 +20,15 @@ class RegionController extends ApiActiveController
 
     public function actionIndex($lang)
     {
-        $model = new Regions();
+        $model = new Region();
 
         $countryId = Yii::$app->request->get('country_id');
         // return $countryId;
 
         $query = $model->find()
-            ->andFilterWhere(['like', 'name', Yii::$app->request->get('query')]);
+            ->andFilterWhere(['like','name', Yii::$app->request->get('query')]);
+
+        ;
 
         // filter
         // $query = $this->filterAll($query, $model);
@@ -57,7 +59,7 @@ class RegionController extends ApiActiveController
 
     public function actionView($lang, $id)
     {
-        $model = Regions::findOne($id);
+        $model = Region::findOne($id);
 
         if (!$model) {
             return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);

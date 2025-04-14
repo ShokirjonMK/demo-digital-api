@@ -36,10 +36,10 @@ class DepartmentController extends ApiActiveController
         }
     }
 
-    public function actionTypes($lang,$key = null)
+    public function actionTypes($lang)
     {
         $model = new Department();
-        return $model->typesArray($key);
+        return $model->typesArray();
     }
 
     public function actionIndex($lang)
@@ -48,13 +48,86 @@ class DepartmentController extends ApiActiveController
 
         $query = $model->find()
             ->with(['infoRelation'])
-            ->andWhere([$this->table_name . '.is_deleted' => 0])
+            ->andWhere([$model->tableName() . '.is_deleted' => 0])
             ->leftJoin("translate tr", "tr.model_id = $this->table_name.id and tr.table_name = '$this->table_name'")
-//            ->andWhere(['tr.language' => Yii::$app->request->get('lang')])
-            ->groupBy($this->table_name . '.id')
-            ->andFilterWhere(['like', 'tr.name', Yii::$app->request->get('query')])
-            ->andFilterWhere(['<', $this->table_name.'.type', Yii::$app->request->get('key')])
-            ->andFilterWhere(['=', $this->table_name.'.type', Yii::$app->request->get('type')]);
+            // ->groupBy($model->tableName() . '.id')
+            ->andFilterWhere(['like', 'tr.name', Yii::$app->request->get('query')]);
+
+        $t = $this->isSelfDep(Department::USER_ACCESS_TYPE_ID);
+        if ($t['status'] == 1) {
+            // $query->andWhere([$model->tableName() . '.id' => $t['UserAccess']->table_id]);
+            $query->where([
+                'in', $model->tableName() . '.id', $t['table_ids']
+            ]);
+        } elseif ($t['status'] == 2) {
+            $query->andFilterWhere([
+                $model->tableName() . '.is_deleted' => -1
+            ]);
+        }
+
+        // filter
+        $query = $this->filterAll($query, $model);
+
+        // sort
+        $query = $this->sort($query);
+
+        // data
+
+        // dd([$query->createCommand()->rawSql, $t['table_ids']]);
+        $data =  $this->getData($query);
+        return $this->response(1, _e('Success'), $data);
+    }
+
+    public function actionKpi($lang)
+    {
+        $model = new Department();
+
+        $query = $model->find()
+            ->with(['infoRelation'])
+            ->andWhere([$model->tableName() . '.is_deleted' => 0])
+            ->leftJoin("translate tr", "tr.model_id = $this->table_name.id and tr.table_name = '$this->table_name'")
+            // ->groupBy($model->tableName() . '.id')
+            ->andFilterWhere(['like', 'tr.name', Yii::$app->request->get('query')]);
+
+        // $t = $this->isSelfDep(Department::USER_ACCESS_TYPE_ID, 2);
+        // if ($t['status'] == 1) {
+        //     // $query->andWhere([$model->tableName() . '.id' => $t['UserAccess']->table_id]);
+        //     $query->where([
+        //         'in', $model->tableName() . '.id', $t['table_ids']
+        //     ]);
+        // } elseif ($t['status'] == 2) {
+        //     $query->andFilterWhere([
+        //         $model->tableName() . '.is_deleted' => -1
+        //     ]);
+        // }
+
+        if (!(isRole('admin') || isRole('monitoring') || isRole('rector') || isRole('comission'))) {
+            $query->andWhere(['user_id' => current_user_id()]);
+        }
+
+        // filter
+        $query = $this->filterAll($query, $model);
+
+        // sort
+        $query = $this->sort($query);
+
+        // data
+
+        // dd([$query->createCommand()->rawSql, $t['table_ids']]);
+        $data =  $this->getData($query);
+        return $this->response(1, _e('Success'), $data);
+    }
+
+    public function actionIndex12($lang)
+    {
+        $model = new Department();
+
+        $query = $model->find()
+            ->with(['infoRelation'])
+            ->andWhere([$model->tableName() . '.is_deleted' => 0])
+            ->leftJoin("translate tr", "tr.model_id = $this->table_name.id and tr.table_name = '$this->table_name'")
+            // ->groupBy($model->tableName() . '.id')
+            ->andFilterWhere(['like', 'tr.name', Yii::$app->request->get('query')]);
 
         // filter
         $query = $this->filterAll($query, $model);
@@ -87,10 +160,10 @@ class DepartmentController extends ApiActiveController
         if (!$model) {
             return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
         }
-        
-//        if (!$this->checkLead($model, self::ROLE)) {
-//            return $this->response(0, _e('You can not change.'), null, null, ResponseStatus::FORBIDDEN);
-//        }
+
+        if (!$this->checkLead($model, self::ROLE)) {
+            return $this->response(0, _e('You can not change.'), null, null, ResponseStatus::FORBIDDEN);
+        }
 
         $post = Yii::$app->request->post();
         $this->load($model, $post);

@@ -2,9 +2,7 @@
 
 namespace common\models\model;
 
-use api\resources\ResourceTrait;
 use Yii;
-use yii\behaviors\TimestampBehavior;
 
 /**
  * This is the model class for table "region".
@@ -26,24 +24,15 @@ use yii\behaviors\TimestampBehavior;
  * @property string|null $updated_on
  * @property int $updated_by
  *
- * @property Country $country
+ * @property Area[] $areas
+ * @property Countries $country
  * @property Region $parent
+ * @property Profile[] $profiles
+ * @property Profile[] $profiles0
  * @property Region[] $regions
-
  */
 class Region extends \yii\db\ActiveRecord
 {
-    public static $selected_language = 'uz';
-    
-    use ResourceTrait;
-
-    public function behaviors()
-    {
-        return [
-            TimestampBehavior::class,
-        ];
-    }
-
     /**
      * {@inheritdoc}
      */
@@ -62,7 +51,7 @@ class Region extends \yii\db\ActiveRecord
             [['created_on', 'updated_on'], 'safe'],
             [['name', 'name_kirill', 'slug', 'postcode'], 'string', 'max' => 150],
             [['lat', 'long'], 'string', 'max' => 100],
-            [['country_id'], 'exist', 'skipOnError' => true, 'targetClass' => Country::className(), 'targetAttribute' => ['country_id' => 'id']],
+            [['country_id'], 'exist', 'skipOnError' => true, 'targetClass' => Countries::className(), 'targetAttribute' => ['country_id' => 'id']],
             [['parent_id'], 'exist', 'skipOnError' => true, 'targetClass' => Region::className(), 'targetAttribute' => ['parent_id' => 'id']],
         ];
     }
@@ -73,29 +62,27 @@ class Region extends \yii\db\ActiveRecord
     public function attributeLabels()
     {
         return [
-            'id' => _e('ID'),
-            'name' => _e('Name'),
-            'name_kirill' => _e('Name Kirill'),
-            'slug' => _e('Slug'),
-            'country_id' => _e('Country ID'),
-            'parent_id' => _e('Parent ID'),
-            'type' => _e('Type'),
-            'postcode' => _e('Postcode'),
-            'lat' => _e('Lat'),
-            'long' => _e('Long'),
-            'sort' => _e('Sort'),
+            'id' => 'ID',
+            'name' => 'Name',
+            'name_kirill' => 'Name Kirill',
+            'slug' => 'Slug',
+            'country_id' => 'Country ID',
+            'parent_id' => 'Parent ID',
+            'type' => 'Type',
+            'postcode' => 'Postcode',
+            'lat' => 'Lat',
+            'long' => 'Long',
+            'sort' => 'Sort',
             'status' => _e('Status'),
-            'created_on' => _e('Created On'),
+            'created_on' => 'Created On',
             'created_by' => _e('Created By'),
-            'updated_on' => _e('Updated On'),
+            'updated_on' => 'Updated On',
             'updated_by' => _e('Updated By'),
-                           
         ];
     }
-    
-    /**
-     * {@inheritdoc}
-     */
+
+
+
     public function fields()
     {
         $fields =  [
@@ -109,12 +96,7 @@ class Region extends \yii\db\ActiveRecord
             'postcode',
             'lat',
             'long',
-            'sort',
             'status',
-            'created_on',
-            'created_by',
-            'updated_on',
-            'updated_by',
         ];
 
         return $fields;
@@ -123,55 +105,29 @@ class Region extends \yii\db\ActiveRecord
     public function extraFields()
     {
         $extraFields =  [
+            'areas',
+            'profilesLive',
+            'profiles',
             'country',
-            'parent',
-            'regions',
-            
-            'description',    
             'createdBy',
             'updatedBy',
             'createdAt',
             'updatedAt',
         ];
-
         return $extraFields;
     }
 
-    
-//    public function getInfoRelation()
-//    {
-//        // self::$selected_language = array_value(admin_current_lang(), "lang_code", "en");
-//        return $this->hasMany(Translate::class, ["model_id" => "id"])
-//            ->andOnCondition(["language" => Yii::$app->request->get("lang"), "table_name" => $this->tableName()]);
-//    }
-//
-//    public function getInfoRelationDefaultLanguage()
-//    {
-//        // self::$selected_language = array_value(admin_current_lang(), "lang_code", "en");
-//        return $this->hasMany(Translate::class, ["model_id" => "id"])
-//            ->andOnCondition(["language" => self::$selected_language, "table_name" => $this->tableName()]);
-//    }
-//
-//    /**
-//     * Get Tranlate
-//     *
-//     * @return void
-//     */
-//    public function getTranslate()
-//    {
-//        if (Yii::$app->request->get("self") == 1) {
-//            return $this->infoRelation[0];
-//        }
-//
-//        return $this->infoRelation[0] ?? $this->infoRelationDefaultLanguage[0];
-//    }
-//
-//    public function getDescription()
-//    {
-//        return $this->translate->description ?? "";
-//    }
 
-    
+    /**
+     * Gets query for [[Areas]].
+     *
+     * @return \yii\db\ActiveQuery
+     */
+    public function getAreas()
+    {
+        return $this->hasMany(Area::className(), ['region_id' => 'id']);
+    }
+
     /**
      * Gets query for [[Country]].
      *
@@ -179,7 +135,7 @@ class Region extends \yii\db\ActiveRecord
      */
     public function getCountry()
     {
-        return $this->hasOne(Country::className(), ['id' => 'country_id']);
+        return $this->hasOne(Countries::className(), ['id' => 'country_id']);
     }
 
     /**
@@ -193,6 +149,26 @@ class Region extends \yii\db\ActiveRecord
     }
 
     /**
+     * Gets query for [[Profiles]].
+     *
+     * @return \yii\db\ActiveQuery
+     */
+    public function getProfiles()
+    {
+        return $this->hasMany(Profile::className(), ['permanent_region_id' => 'id']);
+    }
+
+    /**
+     * Gets query for [[Profiles0]].
+     *
+     * @return \yii\db\ActiveQuery
+     */
+    public function getProfilesLive()
+    {
+        return $this->hasMany(Profile::className(), ['region_id' => 'id']);
+    }
+
+    /**
      * Gets query for [[Regions]].
      *
      * @return \yii\db\ActiveQuery
@@ -200,91 +176,5 @@ class Region extends \yii\db\ActiveRecord
     public function getRegions()
     {
         return $this->hasMany(Region::className(), ['parent_id' => 'id']);
-    }
-
-    /**
-     * Region createItem <$model, $post>
-     */
-    public static function createItem($model, $post)
-    {
-        $transaction = Yii::$app->db->beginTransaction();
-        $errors = [];
-
-        if (!($model->validate())) {
-            $errors[] = $model->errors;
-            $transaction->rollBack();
-            return simplify_errors($errors);
-        }
-
-        // some logic for creating
-
-        $has_error = Translate::checkingAll($post);
-
-        if ($has_error["status"]) {
-            if ($model->save()) {
-                if (isset($post["description"])) {
-                    Translate::createTranslate($post["name"], $model->tableName(), $model->id, $post["description"]);
-                } else {
-                    Translate::createTranslate($post["name"], $model->tableName(), $model->id);
-                }
-                $transaction->commit();
-                return true;
-            } else {
-                $transaction->rollBack();
-                return simplify_errors($errors);
-            }
-        } else {
-            $transaction->rollBack();
-            return double_errors($errors, $has_error["errors"]);
-        }    
-    }
-
-    /**
-     * Region updateItem <$model, $post>
-     */
-    public static function updateItem($model, $post)
-    {
-        $transaction = Yii::$app->db->beginTransaction();
-        $errors = [];
-        
-        if (!($model->validate())) {
-            $errors[] = $model->errors;
-            $transaction->rollBack();
-            return simplify_errors($errors);
-        }
-        
-        // some logic for updating
-
-        $has_error = Translate::checkingUpdate($post);
-        if ($has_error["status"]) {
-            if ($model->save()) {
-                if (isset($post["name"])) {
-                    if (isset($post["description"])) {
-                        Translate::updateTranslate($post["name"], $model->tableName(), $model->id, $post["description"]);
-                    } else {
-                        Translate::updateTranslate($post["name"], $model->tableName(), $model->id);
-                    }
-                }
-                $transaction->commit();
-                return true;
-            } else {
-                $transaction->rollBack();
-                return simplify_errors($errors);
-            }
-        } else {
-            $transaction->rollBack();
-            return double_errors($errors, $has_error["errors"]);
-        }
-    }
-
-    
-    public function beforeSave($insert)
-    {
-        if ($insert) {
-            $this->created_by = current_user_id();
-        } else {
-            $this->updated_by = current_user_id();
-        }
-        return parent::beforeSave($insert);
     }
 }

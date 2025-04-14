@@ -9,6 +9,7 @@ use yii\helpers\Inflector;
 
 class DbController extends Controller
 {
+
     public $controllersWithoutPermissions = [
         'auth'
     ];
@@ -106,5 +107,4 @@ class DbController extends Controller
         list($controller, $action) = explode('_', $permission);
         return ucfirst( strtolower(Inflector::camel2words(Inflector::id2camel($controller . '|' . $action))));
     }
-
 }

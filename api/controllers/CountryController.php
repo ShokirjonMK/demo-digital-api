@@ -15,17 +15,23 @@ class CountryController extends ApiActiveController
         return [];
     }
 
-
-    public $table_name = 'country';
+    public $table_name = 'countries';
     public $controller_name = 'Country';
 
     public function actionIndex($lang)
     {
         $model = new Countries();
 
+        // return Yii::$app->request->get('query');
         $query = $model->find()
+            // ->with(['infoRelation'])
+            // ->andWhere([$this->table_name . '.is_deleted' => 0])
+            // ->leftJoin("translate tr", "tr.model_id = $this->table_name.id and tr.table_name = '$this->table_name'")
+            // ->groupBy($this->table_name . '.id')
+            // ->andFilterWhere(['name', Yii::$app->request->get('query')]);
 
             ->andFilterWhere(['like', 'name', Yii::$app->request->get('query')]);
+
 
         // filter
         $query = $this->filterAll($query, $model);
@@ -49,6 +55,4 @@ class CountryController extends ApiActiveController
         }
         return $this->response(1, _e('Success.'), $model, null, ResponseStatus::OK);
     }
-
-
 }

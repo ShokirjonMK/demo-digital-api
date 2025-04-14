@@ -182,49 +182,6 @@ function weight_type_list($key = false)
     return $array;
 }
 
-function isDate($date, $format = 'Y-m-d') {
-    $dateTime = DateTime::createFromFormat($format, $date);
-    return $dateTime && $dateTime->format($format) === $date;
-}
-
-function isValidPassportSeries($series) {
-    return preg_match('/^[A-Z]{2}$/', $series);
-}
-
-function isValidPassportNumber($number) {
-    return preg_match('/^\d{7}$/', $number);
-}
-
-function isValidPassportPin($pin) {
-    return preg_match('/^\d{14}$/', $pin);
-}
-
-function trKrToUzb($text) {
-    // Kirill harflarini O'zbek lotin harflariga moslashtirish.
-    $cyrillic = [
-        'А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ё', 'Ж', 'З', 'И', 'Й', 'К', 'Л', 'М',
-        'Н', 'О', 'П', 'Р', 'С', 'Т', 'У', 'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Ъ', 'Ы',
-        'Э', 'Ю', 'Я', 'Ў', 'Қ', 'Ҳ', 'а', 'б', 'в', 'г', 'д', 'е', 'ё', 'ж',
-        'з', 'и', 'й', 'к', 'л', 'м', 'н', 'о', 'п', 'р', 'с', 'т', 'у', 'ф',
-        'х', 'ц', 'ч', 'ш', 'ъ', 'ы', 'э', 'ю', 'я', 'ў', 'қ', 'ҳ'
-    ];
-    $latin = [
-        'A', 'B', 'V', 'G', 'D', 'E', 'E', 'J', 'Z', 'I', 'Y', 'K', 'L', 'M',
-        'N', 'O', 'P', 'R', 'S', 'T', 'U', 'F', 'X', 'S', 'CH', 'SH', '', 'I',
-        'E', 'YU', 'YA', 'O‘', 'Q', 'H', 'A', 'B', 'V', 'G', 'D', 'E', 'E', 'J',
-        'Z', 'I', 'Y', 'K', 'L', 'M', 'N', 'O', 'P', 'R', 'S', 'T', 'U', 'F',
-        'X', 'S', 'CH', 'SH', '', 'I', 'E', 'YU', 'YA', 'O‘', 'Q', 'H'
-    ];
-
-    // Transliteration jarayoni.
-    $result = str_replace($cyrillic, $latin, $text);
-
-    // Matnni bosh harfga o‘tkazish.
-    return mb_strtoupper($result, 'UTF-8');
-}
-
-
-
 // Product special types
 function product_special_types($key = false)
 {

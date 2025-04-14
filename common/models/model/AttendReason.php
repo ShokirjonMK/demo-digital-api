@@ -50,11 +50,10 @@ class AttendReason extends \yii\db\ActiveRecord
     const STATUS_INACTIVE = 0;
     const CONFIRMED = 1;
     const NOT_CONFIRMED = 0;
-    const CANCELLED = 2;
 
     const UPLOADS_FOLDER = 'uploads/attend_reason/';
     public $attend_file;
-    public $attendFileMaxSize = 1024 * 1024 * 5; // 5 Mb
+    public $attendFileMaxSize = 1024 * 1024 * 15; // 15 Mb
 
     /**
      * {@inheritdoc}
@@ -80,22 +79,13 @@ class AttendReason extends \yii\db\ActiveRecord
                 'start',
                 'end'
             ], 'safe'],
-//            [
-//                ['end'],
-//                'compare',
-//                'compareValue' => date("Y-m-d H:i:s", strtotime('-1 month')),
-//                'operator' => '>=',
-//                'message' => _e('The date must be within the last month.')
-//            ],
-
-            [
-                ['start'],
-                'compare',
-                'compareValue' => 'end',
-                'operator' => '<',
-                'message' => _e('The end time must be greater than the start time.')
-            ],
-
+            // [
+            //     ['end'],
+            //     'compare',
+            //     'compareValue' => date("Y-m-d H:i:s", strtotime('-1 month')),
+            //     'operator' => '>=',
+            //     'message' => _e('The date must be within the last month.')
+            // ],
             [[
                 'is_confirmed',
                 'student_id',
@@ -123,6 +113,7 @@ class AttendReason extends \yii\db\ActiveRecord
             [['student_id'], 'exist', 'skipOnError' => true, 'targetClass' => Student::className(), 'targetAttribute' => ['student_id' => 'id']],
             [['subject_id'], 'exist', 'skipOnError' => true, 'targetClass' => Subject::className(), 'targetAttribute' => ['subject_id' => 'id']],
             [['edu_year_id'], 'exist', 'skipOnError' => true, 'targetClass' => EduYear::className(), 'targetAttribute' => ['edu_year_id' => 'id']],
+
             [['attend_file'], 'file', 'skipOnEmpty' => true, 'extensions' => 'pdf,doc,docx,png,jpg', 'maxSize' => $this->attendFileMaxSize],
 
         ];
@@ -160,12 +151,9 @@ class AttendReason extends \yii\db\ActiveRecord
         $fields =  [
             'id',
             'is_confirmed',
-            'start' => function($model) {
-                return strtotime($this->start);
-            },
-            'end' => function($model) {
-                return strtotime($this->end);
-            },
+
+            'start',
+            'end',
             'student_id',
             'subject_id',
             'faculty_id',
@@ -265,8 +253,6 @@ class AttendReason extends \yii\db\ActiveRecord
         return $this->hasOne(Subject::className(), ['id' => 'subject_id']);
     }
 
-
-
     public static function createItem($model, $post)
     {
         $transaction = Yii::$app->db->beginTransaction();
@@ -274,24 +260,13 @@ class AttendReason extends \yii\db\ActiveRecord
 
         if (!($model->validate())) {
             $errors[] = $model->errors;
+
             $transaction->rollBack();
             return simplify_errors($errors);
         }
 
         $model->faculty_id = $model->student->faculty_id;
         $model->edu_plan_id = $model->student->edu_plan_id;
-//        $model->user_id = $model->student->user_id;
-
-        $model->attend_file = UploadedFile::getInstancesByName('attend_file');
-        if ($model->attend_file) {
-            $model->attend_file = $model->attend_file[0];
-            $attendFileUrl = $model->upload();
-            if ($attendFileUrl) {
-                $model->file = $attendFileUrl;
-            } else {
-                $errors[] = $model->errors;
-            }
-        }
 
         if (!($model->validate())) {
             $errors[] = $model->errors;
@@ -301,57 +276,53 @@ class AttendReason extends \yii\db\ActiveRecord
 
         if ($model->save()) {
 
-//            $model->attend_file = UploadedFile::getInstancesByName('attend_file');
-//            if ($model->attend_file) {
-//                $model->attend_file = $model->attend_file[0];
-//                $questionFileUrl = $model->uploadFile();
-//                if ($questionFileUrl) {
-//                    $model->file = $questionFileUrl;
-//                } else {
-//                    $errors[] = $model->errors;
-//                }
-//            }
+            $model->attend_file = UploadedFile::getInstancesByName('attend_file');
+            if ($model->attend_file) {
+                $model->attend_file = $model->attend_file[0];
+                $questionFileUrl = $model->uploadFile();
+                if ($questionFileUrl) {
+                    $model->file = $questionFileUrl;
+                } else {
+                    $errors[] = $model->errors;
+                }
+            }
 
+            if (count($errors) > 0) {
+                $transaction->rollBack();
+                return simplify_errors($errors);
+            }
+            if ($model->save(false)) {
+                $transaction->commit();
+                return true;
+            }
         }
-
-        if (count($errors) == 0) {
-            $transaction->commit();
-            return true;
-        } else {
-            $transaction->rollBack();
-            return simplify_errors($errors);
-        }
+        $transaction->rollBack();
+        return simplify_errors($errors);
     }
 
     public static function confirmItem($model)
     {
         $transaction = Yii::$app->db->beginTransaction();
         $errors = [];
-
-        if ($model->is_confirmed == self::CANCELLED) {
-            $errors[] = _e('This has been cancelled!');
-            $transaction->rollBack();
-            return simplify_errors($errors);
-        }
-
+        $studentAttends = new StudentAttend();
+        $studentAttends = $studentAttends::find();
         $reasonStart = date("Y-m-d", strtotime($model->start));
         $reasonEnd = date("Y-m-d", strtotime($model->end));
 
-        $studentAttends = new StudentAttend();
-        $studentAttends = $studentAttends::find();
         $studentAttends = $studentAttends
             ->where(['student_id' => $model->student_id])
-            ->andWhere(['between' , 'date' , $reasonStart , $reasonEnd])
+            ->andWhere(['>=', 'date', $reasonStart])
+            ->andWhere(['<=', 'date', $reasonEnd])
             ->all();
 
         foreach ($studentAttends as $studentAttend) {
 
             $t = false;
-            if ($studentAttend->date == $reasonStart) {
+            if ($studentAttend->date == date("Y-m-d", strtotime($model->start))) {
                 if (($studentAttend->timeTable->para->start_time >= date('H:i', strtotime($model->start)))) {
                     $t = true;
                 }
-            } elseif ($studentAttend->date == $reasonEnd) {
+            } elseif ($studentAttend->date == date("Y-m-d", strtotime($model->end))) {
                 if (($studentAttend->timeTable->para->end_time <= date('H:i', strtotime($model->end)))) {
                     $t = true;
                 }
@@ -363,49 +334,22 @@ class AttendReason extends \yii\db\ActiveRecord
                 $studentAttend->attend_reason_id = $model->id;
                 $studentAttend->reason = StudentAttend::REASON_TRUE;
 
-                if (!$studentAttend->update(false)) {
+                if (!$studentAttend->save()) {
                     $errors[] = $studentAttend->errors;
                 }
             }
         }
 
         $model->is_confirmed = self::CONFIRMED;
-        if (!$model->save(false)) {
+        if ($model->save(false)) {
             $errors[] = $model->errors;
         }
 
-        if (count($errors) == 0) {
+        if (count($errors) > 0) {
             $transaction->commit();
             return true;
         }
 
-        $transaction->rollBack();
-        return simplify_errors($errors);
-    }
-
-
-
-
-    public static function cancellationItem($model)
-    {
-        $transaction = Yii::$app->db->beginTransaction();
-        $errors = [];
-
-        if ($model->is_confirmed == self::CONFIRMED) {
-            $errors[] = _e('This reason confirmed!');
-            $transaction->rollBack();
-            return simplify_errors($errors);
-        }
-
-        $model->is_confirmed = self::CANCELLED;
-        if (!$model->save(false)) {
-            $errors[] = $model->errors;
-        }
-
-        if (count($errors) == 0) {
-            $transaction->commit();
-            return true;
-        }
         $transaction->rollBack();
         return simplify_errors($errors);
     }
@@ -429,7 +373,6 @@ class AttendReason extends \yii\db\ActiveRecord
 
         $model->faculty_id = $model->student->faculty_id;
         $model->edu_plan_id = $model->student->edu_plan_id;
-        $model->is_confirmed = self::NOT_CONFIRMED;
 
         if (!($model->validate())) {
             $errors[] = $model->errors;
@@ -445,7 +388,6 @@ class AttendReason extends \yii\db\ActiveRecord
             $questionFileUrl = $model->uploadFile();
             if ($questionFileUrl) {
                 $model->file = $questionFileUrl;
-                self::deleteFile($oldFile);
             } else {
                 $errors[] = $model->errors;
             }
@@ -493,33 +435,19 @@ class AttendReason extends \yii\db\ActiveRecord
         return parent::beforeSave($insert);
     }
 
+
+
     // 
     public function deleteFile($oldFile = NULL)
     {
         if (isset($oldFile)) {
-            if (file_exists($oldFile)) {
-                unlink($oldFile);
+            if (file_exists(HOME_PATH . $oldFile)) {
+                unlink(HOME_PATH  . $oldFile);
             }
         }
         return true;
     }
 
-    public function upload()
-    {
-        if ($this->validate()) {
-            $folder_name = substr(STORAGE_PATH, 0, -1);
-            if (!file_exists(\Yii::getAlias('@api/web'. $folder_name  ."/". self::UPLOADS_FOLDER))) {
-                mkdir(\Yii::getAlias('@api/web'. $folder_name  ."/". self::UPLOADS_FOLDER), 0777, true);
-            }
-            $fileName = $this->id . \Yii::$app->security->generateRandomString(10) . '.' . $this->attend_file->extension;
-            $miniUrl = self::UPLOADS_FOLDER . $fileName;
-            $url = \Yii::getAlias('@api/web'. $folder_name  ."/". self::UPLOADS_FOLDER. $fileName);
-            $this->attend_file->saveAs($url, false);
-            return "storage/" . $miniUrl;
-        } else {
-            return false;
-        }
-    }
 
     public function uploadFile()
     {

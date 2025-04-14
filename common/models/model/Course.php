@@ -20,7 +20,7 @@ use yii\behaviors\TimestampBehavior;
  * @property int $is_deleted
  *
  * @property EduSemestr[] $eduSemestrs
- * @property TimeTable1[] $timeTables
+ * @property TimeTable[] $timeTables
  */
 class Course extends \yii\db\ActiveRecord
 {
@@ -88,7 +88,14 @@ class Course extends \yii\db\ActiveRecord
         $extraFields =  [
             'eduSemestrs',
             'timeTables',
+            'attendStudentByDay',
+            'students',
+            'studentsCount',
+            'studentsCountByForm',
+            'attendStudentByDayByForm',
 
+
+            'notComingByDate',
 
             'description',
             'createdBy',
@@ -98,6 +105,198 @@ class Course extends \yii\db\ActiveRecord
         ];
 
         return $extraFields;
+    }
+
+    public function getNotComingByDate($faculty_id = null): int
+    {
+        $date = Yii::$app->request->get('date') ? date('Y-m-d', strtotime(Yii::$app->request->get('date'))) : date('Y-m-d');
+
+        $weekNumber = date('N', strtotime($date));
+
+        $studentQuery = Student::find()
+            // ->innerJoin(StudentTimeTable::tableName(), 'student_time_table.student_id = student.id and student_time_table.course_id = student.course_id')
+            ->innerJoin(StudentTimeTable::tableName(), 'student_time_table.student_id = student.id')
+            ->where(['student_time_table.week_id' => $weekNumber])
+            ->andWhere(['student_time_table.archived' => 0])
+            ->andWhere(['student.is_deleted' => 0])
+            ->andWhere(['student.status' => 10])
+            ->andWhere(['student.course_id' => $this->id]);
+
+        if (isset($faculty_id)) {
+            $studentQuery->andWhere(['student.faculty_id' => $faculty_id]);
+        }
+
+        $studentQuery
+            ->groupBy('student.id')
+            ->having('COUNT(student_time_table.id) = (SELECT COUNT(student_attend.id) FROM student_attend WHERE student_attend.student_id = student.id AND student_attend.date = :date AND student_attend.archived = 0)', [':date' => $date]);
+
+        return $studentQuery->count();
+    }
+
+
+    public function getAttendStudentByDay()
+    {
+        // Get 'date' from request or use the current date in 'Y-m-d' format
+        $date = Yii::$app->request->get('date') ? date("Y-m-d", strtotime(Yii::$app->request->get('date'))) : date('Y-m-d');
+
+        // Get 'faculty_id' from request, if available
+        $faculty_id = Yii::$app->request->get('faculty_id');
+
+        // Create query to fetch distinct student count for attendance
+        $query = (new \yii\db\Query())
+            ->select([
+                'COUNT(DISTINCT student_attend.student_id) AS student_count'
+            ])
+            ->from('student_attend')
+            ->innerJoin('student', 'student_attend.student_id = student.id')
+            ->where([
+                'student_attend.date' => $date,
+                'student_attend.course_id' => $this->id,
+                'student_attend.archived' => 0,
+                'student.status' => 10,
+                'student.is_deleted' => 0,
+            ]);
+
+        // Apply additional faculty filter if 'faculty_id' is set
+        if ($faculty_id) {
+            $query->andWhere(['student_attend.faculty_id' => $faculty_id]);
+        }
+
+        // Fetch the result
+        $result = $query->one();
+
+        // Return the student count and the date used in the query
+        return [
+            'student_count' => $result['student_count'] ?? 0, // If no results, default to 0
+            'date' => $date,
+        ];
+    }
+
+    public function getAttendStudentByDayByForm()
+    {
+        // Get 'date' from request or use the current date in 'Y-m-d' format
+        $date = Yii::$app->request->get('date') ? date("Y-m-d", strtotime(Yii::$app->request->get('date'))) : date('Y-m-d');
+
+        // Get 'faculty_id' from request, if available
+        $faculty_id = Yii::$app->request->get('faculty_id');
+
+        // Create query to fetch distinct student count for attendance
+        $query1 = (new \yii\db\Query())
+            ->select([
+                'COUNT(DISTINCT student_attend.student_id) AS student_count'
+            ])
+            ->from('student_attend')
+            ->innerJoin('student', 'student_attend.student_id = student.id')
+            ->where([
+                'student_attend.date' => $date,
+                'student_attend.course_id' => $this->id,
+                'student_attend.archived' => 0,
+                'student.status' => 10,
+
+                'student.is_deleted' => 0,
+            ])->andWhere(['<>', 'student.edu_form_id', 2]);
+
+        $query2 = (new \yii\db\Query())
+            ->select([
+                'COUNT(DISTINCT student_attend.student_id) AS student_count'
+            ])
+            ->from('student_attend')
+            ->innerJoin('student', 'student_attend.student_id = student.id')
+            ->where([
+                'student_attend.date' => $date,
+                'student_attend.course_id' => $this->id,
+                'student_attend.archived' => 0,
+                'student.status' => 10,
+                'student.edu_form_id' => 2,
+                'student.is_deleted' => 0,
+            ]);
+
+        // Fetch the result
+
+        // return $query->createCommand()->rawsql;
+        $result1 = $query1->one();
+
+        // Apply additional faculty filter if 'faculty_id' is set
+        if ($faculty_id) {
+            $query1->andWhere(['student_attend.faculty_id' => $faculty_id]);
+        }
+
+        if ($faculty_id) {
+            $query2->andWhere(['student_attend.faculty_id' => $faculty_id]);
+        }
+
+        // Fetch the result
+        $result1 = $query1->one();
+        $result2 = $query2->one();
+
+        // Return the student count and the date used in the query
+        return [
+            'date' => $date,
+            'form1' => [
+                'student_count' => $result1['student_count'] ?? 0, // If no results, default to 0
+            ],
+            'form2' => [
+                'student_count' => $result2['student_count'] ?? 0, // If no results, default to 0
+            ]
+        ];
+    }
+
+    /**
+     * Gets query for [[Students]].
+     *
+     * @return \yii\db\ActiveQuery|StudentQuery
+     */
+    public function getStudents()
+    {
+        return $this->hasMany(Student::className(), ['course_id' => 'id'])
+            ->onCondition([
+                'status' => 10,
+                'is_deleted' => 0
+            ]);
+    }
+
+    public function getStudentsCount()
+    {
+        return count($this->students);
+    }
+
+    public function getStudentsForm1()
+    {
+
+        $query = $this->hasMany(Student::className(), ['course_id' => 'id'])
+            ->onCondition([
+                'status' => 10,
+                'is_deleted' => 0,
+                'edu_form_id' => 1,
+            ]);
+
+        if (Yii::$app->request->get('faculty_id')) {
+            $query->andWhere(['faculty_id' => Yii::$app->request->get('faculty_id')]);
+        }
+
+        return $query;
+    }
+
+    public function getStudentsForm2()
+    {
+        $query = $this->hasMany(Student::className(), ['course_id' => 'id'])
+            ->onCondition([
+                'status' => 10,
+                'is_deleted' => 0,
+                'edu_form_id' => 2,
+            ]);
+
+        if (Yii::$app->request->get('faculty_id')) {
+            $query->andWhere(['faculty_id' => Yii::$app->request->get('faculty_id')]);
+        }
+
+        return $query;
+    }
+
+
+    public function getStudentsCountByForm()
+    {
+        return ['form1' => count($this->studentsForm1), 'form2' => count($this->studentsForm2)];
     }
 
     public function getTranslate()
@@ -135,7 +334,7 @@ class Course extends \yii\db\ActiveRecord
 
     public function getTimeTables()
     {
-        return $this->hasMany(TimeTable1::className(), ['course_id' => 'id']);
+        return $this->hasMany(TimeTable::className(), ['course_id' => 'id']);
     }
 
     public static function createItem($model, $post)
@@ -201,9 +400,9 @@ class Course extends \yii\db\ActiveRecord
     public function beforeSave($insert)
     {
         if ($insert) {
-            $this->created_by = current_user_id();
+            $this->created_by = Current_user_id();
         } else {
-            $this->updated_by = current_user_id();
+            $this->updated_by = Current_user_id();
         }
         return parent::beforeSave($insert);
     }

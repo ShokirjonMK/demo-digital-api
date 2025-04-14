@@ -2,26 +2,54 @@
 
 namespace common\models\model;
 
+
 use api\resources\ResourceTrait;
 use Yii;
 use yii\behaviors\TimestampBehavior;
+use yii\db\ActiveRecord;
 
 /**
- * This is the model class for table "building".
+ * This is the model class for table "{{%student_mark}}".
  *
  * @property int $id
- * @property string $name
- * @property int|null $order
+ * @property int $student_id
+ * @property int $subject_id
+ * @property int $edu_semestr_id
+ * @property int $edu_semestr_subject_id
+ * @property int|null $course_id
+ * @property int|null $semestr_id
+ * @property int|null $edu_year_id
+ * @property int|null $faculty_id
+ * @property int|null $edu_plan_id
+ * @property float|null $exam_control_student_ball
+ * @property float|null $exam_control_student_ball2
+ * @property float|null $exam_student_ball
+ * @property float|null $ball
+ * @property string|null $description
+ * @property string|null $data
+ * @property int|null $attempt
  * @property int|null $status
- * @property int $created_at
- * @property int $updated_at
- * @property int $created_by
- * @property int $updated_by
- * @property int $is_deleted
+ * @property int|null $is_deleted
+ * @property int|null $created_at
+ * @property int|null $updated_at
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property int|null $edu_lang_id
+ * @property string|null $alphabet
+ * @property string|null $mark
+ * @property int|null $order
  *
- * @property Room[] $rooms
+ * @property Course $course
+ * @property EduPlan $eduPlan
+ * @property EduSemestr $eduSemestr
+ * @property EduSemestrSubject $eduSemestrSubject
+ * @property EduYear $eduYear
+ * @property Faculty $faculty
+ * @property Semestr $semestr
+ * @property Student $student
+ * @property Subject $subject
  */
-class StudentMark extends \yii\db\ActiveRecord
+class StudentMark extends ActiveRecord
 {
     public static $selected_language = 'uz';
 
@@ -34,24 +62,12 @@ class StudentMark extends \yii\db\ActiveRecord
         ];
     }
 
-    const STD_NOT_RATED = 1;
-
-    const STD_RATED = 2;
-
-    const STD_VEDEMOST_ONE = 1;
-    const STD_VEDEMOST_TWO = 2;
-    const STD_VEDEMOST_THREE = 3;
-
-    const EXAM_MIN_BALL = 18;
-    const ALL_MIN_BALL = 42;
-    const ALL_BALL = 60;
-
     /**
      * {@inheritdoc}
      */
     public static function tableName()
     {
-        return 'student_mark';
+        return '{{%student_mark}}';
     }
 
     /**
@@ -60,407 +76,412 @@ class StudentMark extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [
-                [
-                    'edu_semestr_exams_type_id',
-                    'exam_type_id',
-                    'group_id',
-                    'student_id',
-                    'student_user_id',
-                    'max_ball',
-                    'edu_semestr_subject_id',
-                    'subject_id',
-                ], 'required'
-            ],
-            [
-                [
-                    'exam_type_id',
-                    'edu_semestr_exams_type_id',
-                    'student_semestr_subject_vedomst_id',
-                    'type',
-                    'attend',
-                    'passed',
-                    'vedomst',
-
-                    'group_id',
-                    'student_id',
-                    'student_user_id',
-                    'edu_semestr_subject_id',
-                    'edu_plan_id',
-                    'subject_id',
-                    'edu_semestr_id',
-                    'faculty_id',
-                    'direction_id',
-                    'semestr_id',
-                    'course_id',
-
-                    'max_ball',
-                    'order',
-                    'status',
-                    'created_at',
-                    'updated_at',
-                    'created_by',
-                    'updated_by',
-                    'is_deleted'
-                ], 'integer'
-            ],
-            [['ball'], 'safe'],
-            [['exam_type_id'], 'exist', 'skipOnError' => true, 'targetClass' => ExamsType::className(), 'targetAttribute' => ['exam_type_id' => 'id']],
-            [['group_id'], 'exist', 'skipOnError' => true, 'targetClass' => Group::className(), 'targetAttribute' => ['group_id' => 'id']],
-            [['student_id'], 'exist', 'skipOnError' => true, 'targetClass' => Student::className(), 'targetAttribute' => ['student_id' => 'id']],
-            [['edu_semestr_subject_id'], 'exist', 'skipOnError' => true, 'targetClass' => EduSemestrSubject::className(), 'targetAttribute' => ['edu_semestr_subject_id' => 'id']],
-            [['edu_semestr_exams_type_id'], 'exist', 'skipOnError' => true, 'targetClass' => EduSemestrExamsType::className(), 'targetAttribute' => ['edu_semestr_exams_type_id' => 'id']],
-            [['student_user_id'], 'exist', 'skipOnError' => true, 'targetClass' => User::className(), 'targetAttribute' => ['student_user_id' => 'id']],
-            [['edu_plan_id'], 'exist', 'skipOnError' => true, 'targetClass' => EduPlan::className(), 'targetAttribute' => ['edu_plan_id' => 'id']],
-            [['subject_id'], 'exist', 'skipOnError' => true, 'targetClass' => Subject::className(), 'targetAttribute' => ['subject_id' => 'id']],
-            [['edu_semestr_id'], 'exist', 'skipOnError' => true, 'targetClass' => EduSemestr::className(), 'targetAttribute' => ['edu_semestr_id' => 'id']],
-            [['faculty_id'], 'exist', 'skipOnError' => true, 'targetClass' => Faculty::className(), 'targetAttribute' => ['faculty_id' => 'id']],
-            [['direction_id'], 'exist', 'skipOnError' => true, 'targetClass' => Direction::className(), 'targetAttribute' => ['direction_id' => 'id']],
-            [['semestr_id'], 'exist', 'skipOnError' => true, 'targetClass' => Semestr::className(), 'targetAttribute' => ['semestr_id' => 'id']],
+            [['student_id', 'subject_id', 'edu_semestr_id', 'edu_semestr_subject_id'], 'required'],
+            [['student_id', 'subject_id', 'edu_semestr_id', 'edu_semestr_subject_id', 'course_id', 'semestr_id', 'edu_year_id', 'faculty_id', 'edu_plan_id', 'attempt', 'status', 'is_deleted', 'created_at', 'updated_at', 'created_by', 'updated_by', 'edu_lang_id', 'order'], 'integer'],
+            [['exam_control_student_ball', 'exam_control_student_ball2', 'exam_student_ball', 'ball'], 'number'],
+            [['description'], 'string'],
+            [['data'], 'safe'],
+            [['alphabet', 'mark'], 'string', 'max' => 255],
             [['course_id'], 'exist', 'skipOnError' => true, 'targetClass' => Course::className(), 'targetAttribute' => ['course_id' => 'id']],
-            [['student_semestr_subject_vedomst_id'], 'exist', 'skipOnError' => true, 'targetClass' => StudentSemestrSubjectVedomst::className(), 'targetAttribute' => ['student_semestr_subject_vedomst_id' => 'id']],
-
-            ['ball' , 'validateBall'],
-            ['student' , 'validateStudentGroup'],
-
+            [['edu_plan_id'], 'exist', 'skipOnError' => true, 'targetClass' => EduPlan::className(), 'targetAttribute' => ['edu_plan_id' => 'id']],
+            [['edu_semestr_id'], 'exist', 'skipOnError' => true, 'targetClass' => EduSemestr::className(), 'targetAttribute' => ['edu_semestr_id' => 'id']],
+            [['edu_semestr_subject_id'], 'exist', 'skipOnError' => true, 'targetClass' => EduSemestrSubject::className(), 'targetAttribute' => ['edu_semestr_subject_id' => 'id']],
+            [['edu_year_id'], 'exist', 'skipOnError' => true, 'targetClass' => EduYear::className(), 'targetAttribute' => ['edu_year_id' => 'id']],
+            [['faculty_id'], 'exist', 'skipOnError' => true, 'targetClass' => Faculty::className(), 'targetAttribute' => ['faculty_id' => 'id']],
+            [['semestr_id'], 'exist', 'skipOnError' => true, 'targetClass' => Semestr::className(), 'targetAttribute' => ['semestr_id' => 'id']],
+            [['student_id'], 'exist', 'skipOnError' => true, 'targetClass' => Student::className(), 'targetAttribute' => ['student_id' => 'id']],
+            [['subject_id'], 'exist', 'skipOnError' => true, 'targetClass' => Subject::className(), 'targetAttribute' => ['subject_id' => 'id']],
         ];
     }
-
-    public function validateBall($attribute, $params)
-    {
-        if ($this->ball > $this->max_ball) {
-            $this->addError($attribute, _e('The student grade must not be higher than the maximum score!'));
-        }
-    }
-
-    public function validateStudentGroup($attribute, $params)
-    {
-        $student = StudentGroup::findOne([
-            'student_id' => $this->student_id,
-            'edu_semestr_id' => $this->edu_semestr_id,
-            'is_deleted' => 0
-        ]);
-        if ($student->group_id != $this->group_id) {
-            $this->addError($attribute, _e('Error in student group information!'));
-        }
-    }
-
-
     /**
      * {@inheritdoc}
      */
     public function attributeLabels()
     {
         return [
-            'id' => 'ID',
-            'name' => 'Name',
-            'order' => _e('Order'),
+            'id' => _e('ID'),
+            'student_id' => _e('Student ID'),
+            'subject_id' => _e('Subject ID'),
+            'edu_semestr_id' => _e('Edu Semestr ID'),
+            'edu_semestr_subject_id' => _e('Edu Semestr Subject ID'),
+            'course_id' => _e('Course ID'),
+            'semestr_id' => _e('Semestr ID'),
+            'edu_year_id' => _e('Edu Year ID'),
+            'faculty_id' => _e('Faculty ID'),
+            'edu_plan_id' => _e('Edu Plan ID'),
+            'edu_lang_id' => _e('Edu Lang ID'),
+            'exam_control_student_ball' => _e('Exam Control Student Ball'),
+            'exam_control_student_ball2' => _e('Exam Control Student Ball2'),
+            'exam_student_ball' => _e('Exam Student Ball'),
+            'ball' => _e('Ball'),
+            'alphabet' => _e('Alphabet'),
+            'mark' => _e('Mark'),
+            'description' => _e('Description'),
+            'data' => _e('Data'),
+            'attempt' => _e('Attempt'),
             'status' => _e('Status'),
+            'is_deleted' => _e('Is Deleted'),
             'created_at' => _e('Created At'),
             'updated_at' => _e('Updated At'),
             'created_by' => _e('Created By'),
             'updated_by' => _e('Updated By'),
-            'is_deleted' => _e('Is Deleted'),
+            'order' => _e('Order'),
         ];
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function fields()
     {
         $fields =  [
             'id',
-            'edu_semestr_exams_type_id',
-            'exam_type_id',
-            'type',
-            'group_id',
             'student_id',
-            'edu_semestr_subject_id',
-            'student_semestr_subject_vedomst_id',
-            'edu_plan_id',
             'subject_id',
             'edu_semestr_id',
-            'faculty_id',
-            'direction_id',
-            'semestr_id',
+            'edu_semestr_subject_id',
             'course_id',
+            'semestr_id',
+            'edu_year_id',
+            'faculty_id',
+            'edu_plan_id',
+            'exam_control_student_ball',
+            'exam_control_student_ball2',
+            'exam_student_ball',
             'ball',
-            'vedomst',
-            'attend',
-            'passed',
-            'max_ball',
+            'description',
+            'data',
+            'attempt',
+            'edu_lang_id',
+
+            'alphabet',
+            'mark',
+
             'order',
             'status',
+            'is_deleted',
             'created_at',
             'updated_at',
             'created_by',
             'updated_by',
         ];
-
         return $fields;
     }
+
 
     public function extraFields()
     {
         $extraFields =  [
-            'attendStatus',
-            'subject',
-            'examType',
-            'examControl',
-            'examControlStudent',
+            'course',
+            'eduPlan',
+            'eduSemestr',
             'eduSemestrSubject',
-            'vedomsControlBall',
-            'group',
+            'eduYear',
+            'faculty',
+            'semestr',
             'student',
-            'studentUser',
-            'studentVedomst',
-            'finalExamTest',
-            'percent25',
+            'subject',
+
             'createdBy',
             'updatedBy',
             'createdAt',
             'updatedAt',
         ];
+
         return $extraFields;
     }
 
-    public function getSubject()
+    /**
+     * Gets query for [[Course]].
+     *
+     * @return \yii\db\ActiveQuery|CourseQuery
+     */
+    public function getCourse()
     {
-        return $this->hasOne(Subject ::className(), ['id' => 'subject_id']);
+        return $this->hasOne(Course::className(), ['id' => 'course_id']);
     }
 
-    public function getFinalExamTest()
+    /**
+     * Gets query for [[EduPlan]].
+     *
+     * @return \yii\db\ActiveQuery|EduPlanQuery
+     */
+    public function getEduPlan()
     {
-        return $this->hasMany(FinalExamTest ::className(), ['student_mark_id' => 'id']);
+        return $this->hasOne(EduPlan::className(), ['id' => 'edu_plan_id']);
     }
 
-    public function getStudent()
+    /**
+     * Gets query for [[EduSemestr]].
+     *
+     * @return \yii\db\ActiveQuery|EduSemestrQuery
+     */
+    public function getEduSemestr()
     {
-        return $this->hasOne(Student ::className(), ['id' => 'student_id']);
+        return $this->hasOne(EduSemestr::className(), ['id' => 'edu_semestr_id']);
     }
 
+    /**
+     * Gets query for [[EduSemestrSubject]].
+     *
+     * @return \yii\db\ActiveQuery|EduSemestrSubjectQuery
+     */
     public function getEduSemestrSubject()
     {
-        return $this->hasOne(EduSemestrSubject ::className(), ['id' => 'edu_semestr_subject_id']);
+        return $this->hasOne(EduSemestrSubject::className(), ['id' => 'edu_semestr_subject_id']);
     }
 
-    public function getGroup()
+    /**
+     * Gets query for [[EduYear]].
+     *
+     * @return \yii\db\ActiveQuery|EduYearQuery
+     */
+    public function getEduYear()
     {
-        return $this->hasOne(Group ::className(), ['id' => 'group_id']);
+        return $this->hasOne(EduYear::className(), ['id' => 'edu_year_id']);
     }
 
-    public function getStudentUser()
+    /**
+     * Gets query for [[Faculty]].
+     *
+     * @return \yii\db\ActiveQuery|FacultyQuery
+     */
+    public function getFaculty()
     {
-        return $this->hasOne(User ::className(), ['id' => 'student_user_id']);
+        return $this->hasOne(Faculty::className(), ['id' => 'faculty_id']);
     }
 
-    public function getExamControl()
+    /**
+     * Gets query for [[Semestr]].
+     *
+     * @return \yii\db\ActiveQuery|SemestrQuery
+     */
+    public function getSemestr()
     {
-        return $this->hasOne(ExamControl ::className(), ['id' => 'exam_control_id']);
+        return $this->hasOne(Semestr::className(), ['id' => 'semestr_id']);
     }
 
-    public function getExamControlStudent()
+    /**
+     * Gets query for [[Student]].
+     *
+     * @return \yii\db\ActiveQuery|StudentQuery
+     */
+    public function getStudent()
     {
-        return $this->hasOne(ExamControlStudent ::className(), ['id' => 'exam_control_student_id']);
+        return $this->hasOne(Student::className(), ['id' => 'student_id']);
     }
 
-    public function getAttendStatus()
+    /**
+     * Gets query for [[Subject]].
+     *
+     * @return \yii\db\ActiveQuery|SubjectQuery
+     */
+    public function getSubject()
     {
-        $subject = $this->eduSemestrSubject;
-        $status = 1;
-        $subjectHour = 0;
-        $sababliNb = 0;
-        $allNb = 0;
-
-        if ($subject->type == 0) {
-            $status = 0;
-            $subjectHour = $subject->allHour / 2;
-            $timeTables = TimetableAttend::find()
-                ->where([
-                    'student_id' => $this->student_id,
-                    'subject_id' => $subject->subject_id,
-                    'status' => 1,
-                    'is_deleted' => 0
-                ])->all();
-
-            $allNb = count($timeTables);
-
-            if ($allNb > 0) {
-                foreach ($timeTables as $timeTable) {
-                    if ($timeTable->reason == 1) {
-                        $sababliNb++;
-                    }
-                }
-            }
-        }
-
-        return [
-            'status' => $status,
-            'subjectAllHour' => $subjectHour,
-            'attendAll' => $allNb,
-            'reason' => $sababliNb,
-        ];
+        return $this->hasOne(Subject::className(), ['id' => 'subject_id']);
     }
 
-
-    public function getPercent25()
-    {
-        $attend = $this->attendStatus;
-        $sababsiz = $attend['attendAll'] - $attend['reason'];
-        $percent25 = $attend['subjectAllHour'] * 0.25;
-
-        return ($percent25 <= $sababsiz) ? 0 : 1;
-    }
-
-    public function getExamType()
-    {
-        return $this->hasOne(ExamsType ::className(), ['id' => 'exam_type_id']);
-    }
-
-    public function getStudentVedomst()
-    {
-        return $this->hasOne(StudentSemestrSubjectVedomst ::className(), ['id' => 'student_semestr_subject_vedomst_id'])->where(['is_deleted' => 0]);
-    }
-
-    public function getVedomsControlBall()
-    {
-        if ($this->exam_type_id == 3) {
-            return StudentMark::find()
-                ->where([
-                    'student_semestr_subject_vedomst_id' => $this->student_semestr_subject_vedomst_id,
-                    'is_deleted' => 0
-                ])
-                ->andWhere(['not in' , 'exam_type_id' , 3])
-                ->all();
-        }
-    }
-
-    public static function createItem($post)
+    /**
+     * StudentMark createItem From ExamControlStudent
+     */
+    public static function createItemFromControl($examControlStudent)
     {
         $transaction = Yii::$app->db->beginTransaction();
         $errors = [];
 
-        if (!isset($post['edu_semestr_exams_type_id'])) {
-            $errors[] = ['edu_semestr_exams_type_id' => _e('Edu Semestr Exams Type required!')];
+        $model = new StudentMark();
+        // $modelControl = StudentMark::find()
+        //     ->where(['edu_semestr_subject_id' => $examControlStudent->edu_semestr_subject_id])
+        //     ->andWhere(['is not null', 'exam_control_student_ball'])
+        //     ->one();
+
+        $modelControlNotNull = StudentMark::find()
+            ->where(['edu_semestr_subject_id' => $examControlStudent->edu_semestr_subject_id])
+            ->andWhere(['not', ['exam_control_student_ball' => null]])
+            ->orderBy(['created_at' => SORT_DESC])  // assuming 'latest()' is for ordering
+            ->one();
+
+        if ($modelControlNotNull) {
+            $model->attempt = $modelControlNotNull->attempt + 1;
+        }
+
+        $modelControlNull = StudentMark::find()
+            ->where(['edu_semestr_subject_id' => $examControlStudent->edu_semestr_subject_id])
+            ->andWhere(['exam_control_student_ball' => null])
+            ->orderBy(['created_at' => SORT_DESC])  // assuming 'latest()' is for ordering
+            ->one();
+
+        if ($modelControlNull) {
+            $model = $modelControlNull;
+
+            $model->exam_control_student_ball = $examControlStudent->ball;
+            $model->exam_control_student_ball2 = $examControlStudent->ball2;
+        } else {
+            $model->exam_control_student_ball = $examControlStudent->ball;
+            $model->exam_control_student_ball2 = $examControlStudent->ball2;
+
+            $model->edu_semestr_subject_id = $examControlStudent->edu_semestr_subject_id;
+            $model->subject_id = $examControlStudent->subject_id;
+            $model->student_id = $examControlStudent->student_id;
+            $model->edu_semestr_id = $examControlStudent->examControl->edu_semester_id;
+
+            $model->course_id = $examControlStudent->course_id;
+            $model->semestr_id = $examControlStudent->semester_id;
+            $model->edu_year_id = $examControlStudent->edu_year_id;
+            $model->faculty_id = $examControlStudent->faculty_id;
+            $model->edu_plan_id = $examControlStudent->edu_plan_id;
+
+            $model->edu_lang_id = $examControlStudent->language_id;
+        }
+
+        if ($model->save()) {
+            $transaction->commit();
+            return [
+                'status' => true,
+                'data' => $model
+            ];
+        } else {
+            $transaction->rollBack();
+            return [
+                'status' => false,
+                'errors' => $errors
+            ];
+        }
+    }
+
+    public static function updateItemFromControl($id, $ball, $ball2)
+    {
+        $transaction = Yii::$app->db->beginTransaction();
+        $errors = [];
+        $model = self::findOne($id);
+
+        $model->exam_control_student_ball = $ball;
+        $model->exam_control_student_ball2 = $ball2;
+
+
+        if ($model->save()) {
+            $transaction->commit();
+            return [
+                'status' => true,
+                'data' => $model
+            ];
+        } else {
+            $transaction->rollBack();
+            return [
+                'status' => false,
+                'errors' => $errors
+            ];
+        }
+    }
+
+    /**
+     * StudentMark createItem From ExamStudent
+     */
+    public static function createItemFromExam($examStudent)
+    {
+        $transaction = Yii::$app->db->beginTransaction();
+        $errors = [];
+
+        $model = new StudentMark();
+        // $modelControl = StudentMark::find()
+        //     ->where(['edu_semestr_subject_id' => $examControlStudent->edu_semestr_subject_id])
+        //     ->andWhere(['is not null', 'exam_control_student_ball'])
+        //     ->one();
+
+        $modelControlNotNull = StudentMark::find()
+            ->where('edu_semestr_subject_id', $examStudent->edu_semestr_subject_id)
+            ->whereNotNull('exam_control_student_ball')
+            ->latest()
+            ->first();
+
+        if ($modelControlNotNull) {
+            $model->attempt = $modelControlNotNull->attempt + 1;
+        }
+
+        $modelControlNull = StudentMark::find()
+            ->where('edu_semestr_subject_id', $examStudent->edu_semestr_subject_id)
+            ->whereNotNull('exam_control_student_ball')
+            ->latest()
+            ->first();
+
+        if ($modelControlNull) {
+            $model = $modelControlNull;
+
+            $model->exam_student_ball = $examStudent->ball;
+        } else {
+            $model->exam_student_ball = $examStudent->ball;
+
+            $model->edu_semestr_subject_id = $examStudent->edu_semestr_subject_id;
+            $model->subject_id = $examStudent->subject_id;
+            $model->student_id = $examStudent->student_id;
+            $model->edu_semestr_id = $model->eduSemestrSubject->edu_semestr_id;
+
+            $model->course_id = $model->eduSemestr->course_id;
+            $model->semestr_id = $model->eduSemestr->semester_id;
+            $model->faculty_id = $examStudent->student->faculty_id;
+            $model->edu_plan_id = $model->eduSemestr->edu_plan_id;
+            $model->edu_year_id = $examStudent->edu_year_id;
+
+            $model->edu_lang_id = $examStudent->lang_id;
+        }
+
+        if ($model->save()) {
+            $transaction->commit();
+            return [
+                'status' => true,
+                'data' => $model
+            ];
+        } else {
+            $transaction->rollBack();
+            return [
+                'status' => false,
+                'errors' => $errors
+            ];
+        }
+    }
+
+    public static function updateItemFromExam($id, $ball)
+    {
+        $transaction = Yii::$app->db->beginTransaction();
+        $errors = [];
+        $model = self::findOne($id);
+
+        $model->exam_student_ball = $ball;
+
+        if ($model->save()) {
+            $transaction->commit();
+            return [
+                'status' => true,
+                'data' => $model
+            ];
+        } else {
+            $transaction->rollBack();
+            return [
+                'status' => false,
+                'errors' => $errors
+            ];
+        }
+    }
+
+    /**
+     * StudentMark createItem <$model, $post>
+     */
+    public static function createItem($model, $post)
+    {
+        $transaction = Yii::$app->db->beginTransaction();
+        $errors = [];
+        // $errors[] = $model->errors;
+        // $transaction->rollBack();
+        // return simplify_errors($errors);
+
+
+        if (!($model->validate())) {
+            $errors[] = $model->errors;
             $transaction->rollBack();
             return simplify_errors($errors);
-        } else {
-            $examType = EduSemestrExamsType::findOne([
-                'id' => $post['edu_semestr_exams_type_id'],
-                'status' => 1,
-                'is_deleted' => 0,
-            ]);
-            if (!isset($examType)) {
-                $errors[] = ['edu_semestr_exams_type_id' => _e('Edu Semestr Exams Type not found')];
-                $transaction->rollBack();
-                return simplify_errors($errors);
-            }
-            $eduSemestr = EduSemestr::findOne($examType->eduSemestrSubject->edu_semestr_id);
-            if (!isset($eduSemestr)) {
-                $errors[] = ['edu_semestr_id' => _e('Edu Semestr ID not found')];
-                $transaction->rollBack();
-                return simplify_errors($errors);
-            }
         }
 
-        $post['student_ids'] = str_replace("'", "", $post['student_ids']);
-        $students = json_decode(str_replace("'", "", $post['student_ids']));
-
-        if (isset($students)) {
-            foreach ($students as $group => $studentIds) {
-                foreach ($studentIds as $studentId => $studentVedomst) {
-
-                    $finalExam = FinalExam::findOne([
-                        'edu_semestr_subject_id' => $examType->edu_semestr_subject_id,
-                        'edu_semestr_exams_type_id' => $examType->id,
-                        'vedomst' => $studentVedomst,
-                        'is_deleted' => 0,
-                    ]);
-                    if ($finalExam) {
-                        if ($finalExam->status != 1) {
-                            $errors[] = _e('The final control over vedomst is confirmed.');
-                            $transaction->rollBack();
-                            return simplify_errors($errors);
-                        }
-                    }
-
-                    if ($studentVedomst != 0) {
-                        $validStudentMark = StudentMark::findOne([
-                            'group_id' => $group,
-                            'edu_semestr_exams_type_id' => $examType->id,
-                            'student_id' => $studentId,
-                            'passed' => null,
-                            'is_deleted' => 0
-                        ]);
-                        if ($validStudentMark) {
-                            $errors[] = _e('XATOLIK!!!');
-                        } else {
-                            $isStudentMark = StudentMark::find()
-                                ->where([
-                                    'group_id' => $group,
-                                    'edu_semestr_exams_type_id' => $examType->id,
-                                    'student_id' => $studentId,
-                                    'is_deleted' => 0
-                                ])
-                                ->orderBy('vedomst desc')
-                                ->one();
-                            $t = false;
-                            if ($isStudentMark) {
-                                if ($isStudentMark->vedomst > $studentVedomst) {
-                                    $errors[] = _e('This student will not be included in this transcript.');
-                                } else {
-                                    $t = true;
-                                }
-                            } else {
-                                $t = true;
-                            }
-
-                            if ($t) {
-                                $studentMark = StudentMark::findOne([
-                                    'group_id' => $group,
-                                    'edu_semestr_exams_type_id' => $examType->id,
-                                    'student_id' => $studentId,
-                                    'vedomst' => $studentVedomst,
-                                    'is_deleted' => 0
-                                ]);
-                                if ($studentMark == null) {
-                                    $model = new StudentMark();
-                                    $model->vedomst = $studentVedomst;
-                                    $model->group_id = $group;
-                                    $model->student_id = $studentId;
-                                    $model->student_user_id = $model->student->user_id;
-                                    $model->ball = 0;
-                                    $model->edu_semestr_subject_id = $examType->edu_semestr_subject_id;
-                                    $model->edu_semestr_exams_type_id = $examType->id;
-                                    $model->subject_id = $examType->eduSemestrSubject->subject_id;
-                                    $model->max_ball = $examType->max_ball;
-                                    $model->exam_type_id = $examType->exams_type_id;
-                                    $model->edu_semestr_id = $eduSemestr->id;
-                                    $model->edu_plan_id = $eduSemestr->edu_plan_id;
-                                    $model->faculty_id = $eduSemestr->faculty_id;
-                                    $model->direction_id = $eduSemestr->direction_id;
-                                    $model->semestr_id = $eduSemestr->semestr_id;
-                                    $model->course_id = $eduSemestr->course_id;
-                                    $model->status = self::STD_NOT_RATED;
-                                    if (!$model->validate()) {
-                                        $errors[] = $model->errors;
-                                        $transaction->rollBack();
-                                        return simplify_errors($errors);
-                                    }
-                                    $model->save(false);
-                                } else {
-                                    $errors[] = ['student id = ' . $studentMark->student_id , _e("You cannot change the information.")];
-                                }
-
-                            }
-                        }
-                    }
-
-                }
-            }
-        } else {
-            $errors[] = ['student_ids' => _e('Students ID not found')];
-        }
-
-        if (count($errors) == 0) {
+        if ($model->save()) {
             $transaction->commit();
             return true;
         } else {
@@ -469,52 +490,26 @@ class StudentMark extends \yii\db\ActiveRecord
         }
     }
 
-
-    public static function updateItem($post)
+    /**
+     * StudentMark updateItem <$model, $post>
+     */
+    public static function updateItem($model, $post)
     {
+
         $transaction = Yii::$app->db->beginTransaction();
         $errors = [];
 
-        $post['student_ids'] = str_replace("'", "", $post['student_ids']);
-        $marks = json_decode(str_replace("'", "", $post['student_ids']));
-        if (isset($marks)) {
-            foreach ($marks as $markId => $markBall) {
-                $studentMark = StudentMark::findOne($markId);
-                if (!$studentMark) {
-                    $errors[] = $markId. _e(' Mark ID not found.');
-                } else {
-                    if ($studentMark->exam_type_id != 3 && $studentMark->faculty_id != 6) {
-                        $studentMark->ball = $markBall;
-                        if (!$studentMark->validate()) {
-                            $errors[] = $studentMark->errors;
-                        } else {
-                            $studentMark->update(false);
+        $errors[] = $model->errors;
+        $transaction->rollBack();
+        return simplify_errors($errors);
 
-                            StudentMark::markHistory($studentMark);
-
-                            $finalExamGroup = FinalExamGroup::findOne([
-                                'group_id' => $studentMark->student->group_id,
-                                'edu_semestr_subject_id' => $studentMark->edu_semestr_subject_id,
-                                'vedomst' => $studentMark->studentVedomst->vedomst,
-                                'is_deleted' => 0
-                            ]);
-                            if ($finalExamGroup) {
-                                $finalExam = $finalExamGroup->finalExam;
-                                if ($finalExam->status > 2 && $finalExam->is_deleted == 0) {
-                                    $errors[] = _e('This form is closed.');
-                                }
-                            }
-                        }
-                    } else {
-                        $errors[] = _e('Cannot be final graded.');
-                    }
-                }
-            }
-        } else {
-            $errors[] = ['student_ids' => _e('Students ID not found')];
+        if (!($model->validate())) {
+            $errors[] = $model->errors;
+            $transaction->rollBack();
+            return simplify_errors($errors);
         }
 
-        if (count($errors) == 0) {
+        if ($model->save()) {
             $transaction->commit();
             return true;
         } else {
@@ -523,450 +518,14 @@ class StudentMark extends \yii\db\ActiveRecord
         }
     }
 
-
-    public static function examItem($post)
-    {
-        $transaction = Yii::$app->db->beginTransaction();
-        $errors = [];
-
-        $post['student_ids'] = str_replace("'", "", $post['student_ids']);
-        $marks = json_decode(str_replace("'", "", $post['student_ids']));
-        if (isset($marks)) {
-            foreach ($marks as $markId => $markBall) {
-                $studentMark = StudentMark::findOne($markId);
-                if (!$studentMark) {
-                    $errors[] = $markId. _e(' Mark ID not found.');
-                } else {
-                    $studentMark->ball = $markBall;
-                    $studentMark->status = 2;
-                    $studentMark->attend = 1;
-                    if (!$studentMark->validate()) {
-                        $errors[] = $studentMark->errors;
-                    } else {
-                        $studentMark->update(false);
-                        StudentMark::markHistory($studentMark);
-                        if ($studentMark->exam_type_id == 3) {
-                            $marks = StudentMark::find()
-                                ->where([
-                                    'student_semestr_subject_vedomst_id' => $studentMark->student_semestr_subject_vedomst_id,
-                                    'is_deleted' => 0
-                                ])->all();
-                            $ball = 0;
-                            if (count($marks) > 0) {
-                                foreach ($marks as $mark) {
-                                    $ball = $ball + (int)$mark->ball;
-                                }
-                            }
-                            $studentVedomst = $studentMark->studentVedomst;
-                            $studentVedomst->ball = (int)$ball;
-                            $studentVedomst->passed = 1;
-                            $studentVedomst->update(false);
-                            $studentSemestrSubject = $studentVedomst->studentSemestrSubject;
-                            $studentSemestrSubject->all_ball = $studentVedomst->ball;
-                            $studentSemestrSubject->closed = 1;
-                            $studentSemestrSubject->update(false);
-                        }
-                    }
-                }
-            }
-        } else {
-            $errors[] = ['student_ids' => _e('Students ID not found')];
-        }
-
-        if (count($errors) == 0) {
-            $transaction->commit();
-            return true;
-        } else {
-            $transaction->rollBack();
-            return simplify_errors($errors);
-        }
-    }
-
-
-    public static function finalExam($post, $model)
-    {
-        $transaction = Yii::$app->db->beginTransaction();
-        $errors = [];
-
-        if (!isset($post['students'])) {
-            $errors[] = _e('Student not found.');
-        }
-        $students = json_decode($post['students']);
-        if (isset($students)) {
-            foreach ($students as $studentMark => $ball) {
-                $mark = StudentMark::findOne($studentMark);
-                if ($mark != null) {
-                    if ($model->vedomst == $mark->studentVedomst->vedomst && $mark->edu_semestr_subject_id == $model->edu_semestr_subject_id) {
-                        if ($ball[0] == 1) {
-                            $mark->ball = $ball[1];
-                            $mark->status = 2;
-                            $mark->attend = 1;
-                            if ($mark->validate()) {
-                                $mark->update(false);
-                                StudentMark::markHistory($mark);
-                            } else {
-                                $errors[] = $mark->errors;
-                            }
-                        } else {
-                            $mark->status = 2;
-                            $mark->ball = 0;
-                            $mark->attend = 0;
-                            $mark->update(false);
-                        }
-                    } else {
-                        $errors[] = $studentMark. _e(' This student is not included in this registr.');
-                    }
-                } else {
-                    $errors[] = $studentMark. _e(' Student Mark Id not found.');
-                }
-            }
-        } else {
-            $errors[] = _e(' Students data not found.');
-        }
-
-        if (count($errors) == 0) {
-            $transaction->commit();
-            return true;
-        } else {
-            $transaction->rollBack();
-            return simplify_errors($errors);
-        }
-    }
-
-
-    public static function finalExam12121($post, $model)
-    {
-        $transaction = Yii::$app->db->beginTransaction();
-        $errors = [];
-
-        if (!isset($post['students'])) {
-            $errors[] = _e('Student not found.');
-        }
-
-        $students = json_decode($post['students']);
-
-        if (isset($students)) {
-            foreach ($students as $studentMark => $ball) {
-                $mark = StudentMark::findOne($studentMark);
-                if ($mark != null) {
-                    if ($model->vedomst == $mark->vedomst && $mark->edu_semestr_subject_id == $model->edu_semestr_subject_id) {
-                        if ($ball[0] == 1) {
-                            $mark->ball = $ball[1];
-                            $mark->status = 2;
-                            if ($mark->validate()) {
-                                $mark->update(false);
-
-                                $stdVedomst = StudentMarkVedomst::findOne([
-                                    'student_mark_id' => $mark->id,
-                                    'vedomst' => $mark->vedomst,
-                                    'is_deleted' => 0
-                                ]);
-
-                                if ($stdVedomst) {
-                                    $stdVedomst->ball = $ball[1];
-                                    $stdVedomst->passed = 1;
-                                    $stdVedomst->attend = 1;
-                                    $query = StudentMark::find()
-                                        ->where([
-                                            'edu_semestr_subject_id' => $mark->edu_semestr_subject_id,
-                                            'student_id' => $mark->student_id,
-                                            'is_deleted' => 0
-                                        ])
-                                        ->andWhere(['<>' , 'exam_type_id' , 3])
-                                        ->all();
-
-                                    $bal = 0;
-                                    if (count($query) > 0) {
-                                        foreach ($query as $item) {
-                                            $bal = $bal + $item->ball;
-                                        }
-                                    }
-
-                                    $all_ball = $bal + $mark->ball;
-                                    if ($mark->ball < self::EXAM_MIN_BALL) {
-                                        $mark->ball = 0;
-                                        $mark->status = 1;
-                                        $stdVedomst->passed = 2;
-                                    }
-                                    if ($bal < self::ALL_MIN_BALL) {
-                                        $mark->ball = 0;
-                                        $mark->status = 1;
-                                        $stdVedomst->passed = 2;
-                                    }
-                                    if ($all_ball < self::ALL_BALL) {
-                                        $mark->ball = 0;
-                                        $mark->status = 1;
-                                        $stdVedomst->passed = 2;
-                                    }
-                                    $mark->update(false);
-                                    $stdVedomst->update(false);
-
-                                } else {
-                                    $errors[] = _e('You cannot grade a student.');
-                                }
-
-                            } else {
-                                $errors[] = $mark->errors;
-                            }
-                        } else {
-                            $stdVedomst = StudentMarkVedomst::findOne([
-                                'student_mark_id' => $mark->id,
-                                'vedomst' => $mark->vedomst,
-                                'is_deleted' => 0
-                            ]);
-                            if ($stdVedomst) {
-                                $stdVedomst->attend = $ball[0];
-                                $stdVedomst->passed = 2;
-                                $stdVedomst->ball = 0;
-                                $stdVedomst->save(false);
-                            } else {
-                                $errors[] = _e('You cannot grade a student.');
-                            }
-                        }
-                    } else {
-                        $errors[] = $studentMark. _e(' This student is not included in this registr.');
-                    }
-                } else {
-                    $errors[] = $studentMark. _e(' Student Mark Id not found.');
-                }
-            }
-        } else {
-            $errors[] = _e(' Students data not found.');
-        }
-
-        if (count($errors) == 0) {
-            $transaction->commit();
-            return true;
-        } else {
-            $transaction->rollBack();
-            return simplify_errors($errors);
-        }
-    }
-
-    public static function createItem12121($post)
-    {
-        $transaction = Yii::$app->db->beginTransaction();
-        $errors = [];
-
-        if (!isset($post['edu_semestr_exams_type_id'])) {
-            $errors[] = ['edu_semestr_exams_type_id' => _e('Edu Semestr Exams Type required!')];
-            $transaction->rollBack();
-            return simplify_errors($errors);
-        } else {
-            $examType = EduSemestrExamsType::findOne([
-                'id' => $post['edu_semestr_exams_type_id'],
-                'status' => 1,
-                'is_deleted' => 0,
-            ]);
-            if (!isset($examType)) {
-                $errors[] = ['edu_semestr_exams_type_id' => _e('Edu Semestr Exams Type not found')];
-                $transaction->rollBack();
-                return simplify_errors($errors);
-            }
-            $eduSemestr = EduSemestr::findOne($examType->eduSemestrSubject->edu_semestr_id);
-            if (!isset($eduSemestr)) {
-                $errors[] = ['edu_semestr_id' => _e('Edu Semestr ID not found')];
-                $transaction->rollBack();
-                return simplify_errors($errors);
-            }
-        }
-
-        $post['student_ids'] = str_replace("'", "", $post['student_ids']);
-        $students = json_decode(str_replace("'", "", $post['student_ids']));
-
-        if (isset($students)) {
-            foreach ($students as $group => $studentIds) {
-                foreach ($studentIds as $studentId => $studentVedomst) {
-
-                    $validStudentMark = StudentMark::findOne([
-                        'group_id' => $group,
-                        'edu_semestr_exams_type_id' => $examType->id,
-                        'student_id' => $studentId,
-                        'passed' => null,
-                        'is_deleted' => 0
-                    ]);
-                    if ($validStudentMark) {
-                        $errors[] = _e('XATOLIK!!!');
-                    } else {
-                        $isStudentMark = StudentMark::find()
-                            ->where([
-                                'group_id' => $group,
-                                'edu_semestr_exams_type_id' => $examType->id,
-                                'student_id' => $studentId,
-                                'is_deleted' => 0
-                            ])
-                            ->orderBy('vedomst desc')
-                            ->one();
-                        $t = false;
-                        if ($isStudentMark) {
-                            if ($isStudentMark->vedomst > $studentVedomst) {
-                                $errors[] = _e('This student will not be included in this transcript.');
-                            } else {
-                                $t = true;
-                            }
-                        } else {
-                            $t = true;
-                        }
-
-                        if ($t) {
-
-                            $studentMark = StudentMark::findOne([
-                                'group_id' => $group,
-                                'edu_semestr_exams_type_id' => $examType->id,
-                                'student_id' => $studentId,
-                                'vedomst' => $studentVedomst,
-                                'is_deleted' => 0
-                            ]);
-
-                            if ($studentMark == null) {
-                                $model = new StudentMark();
-                                $model->vedomst = $studentVedomst;
-                                $model->group_id = $group;
-                                $model->student_id = $studentId;
-                                $model->student_user_id = $model->student->user_id;
-                                $model->ball = 0;
-                                $model->edu_semestr_subject_id = $examType->edu_semestr_subject_id;
-                                $model->edu_semestr_exams_type_id = $examType->id;
-                                $model->subject_id = $examType->eduSemestrSubject->subject_id;
-                                $model->max_ball = $examType->max_ball;
-                                $model->exam_type_id = $examType->exams_type_id;
-                                $model->edu_semestr_id = $eduSemestr->id;
-                                $model->edu_plan_id = $eduSemestr->edu_plan_id;
-                                $model->faculty_id = $eduSemestr->faculty_id;
-                                $model->direction_id = $eduSemestr->direction_id;
-                                $model->semestr_id = $eduSemestr->semestr_id;
-                                $model->course_id = $eduSemestr->course_id;
-                                $model->status = self::STD_NOT_RATED;
-                                if (!$model->validate()) {
-                                    $errors[] = $model->errors;
-                                    $transaction->rollBack();
-                                    return simplify_errors($errors);
-                                }
-                                $model->save(false);
-                                for ($i = 1; $i <= 4; $i++) {
-                                    if ($i == $studentVedomst) {
-                                        $type = 0;
-                                    } else {
-                                        $type = 1;
-                                    }
-                                    $new = new StudentMarkVedomst();
-                                    $new->student_mark_id = $model->id;
-                                    $new->edu_semestr_exams_type_id = $model->edu_semestr_exams_type_id;
-                                    $new->group_id = $model->group_id;
-                                    $new->edu_semestr_subject_id = $model->edu_semestr_subject_id;
-                                    $new->student_id = $model->student_id;
-                                    $new->student_user_id = $model->student_user_id;
-                                    $new->vedomst = $i;
-                                    $new->type = $type;
-                                    $new->save(false);
-                                }
-                            } else {
-                                if ($studentMark->status == self::STD_RATED) {
-                                    $errors[] = ['student id = ' . $studentMark->student_id , _e("This student is graded.")];
-                                } else {
-                                    $studentMarkHistory = new StudentMarkHistory();
-                                    $studentMarkHistory->edu_semestr_exams_type_id = $studentMark->edu_semestr_exams_type_id;
-                                    $studentMarkHistory->exam_type_id = $studentMark->exam_type_id;
-                                    $studentMarkHistory->group_id = $studentMark->group_id;
-                                    $studentMarkHistory->student_id = $studentMark->student_id;
-                                    $studentMarkHistory->student_user_id = $studentMark->student_user_id;
-                                    $studentMarkHistory->ball = $studentMark->ball;
-                                    $studentMarkHistory->max_ball = $studentMark->max_ball;
-                                    $studentMarkHistory->edu_semestr_subject_id = $studentMark->edu_semestr_subject_id;
-                                    $studentMarkHistory->subject_id = $studentMark->subject_id;
-                                    $studentMarkHistory->edu_plan_id = $studentMark->edu_plan_id;
-                                    $studentMarkHistory->edu_semestr_id = $studentMark->edu_semestr_id;
-                                    $studentMarkHistory->faculty_id = $studentMark->faculty_id;
-                                    $studentMarkHistory->direction_id = $studentMark->direction_id;
-                                    $studentMarkHistory->semestr_id = $studentMark->semestr_id;
-                                    $studentMarkHistory->course_id = $studentMark->course_id;
-                                    $studentMarkHistory->type = $studentMark->type;
-                                    $studentMarkHistory->exam_id = $studentMark->exam_id;
-                                    $studentMarkHistory->exam_student_id = $studentMark->exam_student_id;
-                                    $studentMarkHistory->exam_control_id = $studentMark->exam_control_id;
-                                    $studentMarkHistory->exam_control_student_id = $studentMark->exam_control_student_id;
-                                    $studentMarkHistory->update_date = time();
-                                    $studentMarkHistory->vedomst = $studentMark->vedomst;
-                                    $studentMarkHistory->status = $studentMark->status;
-                                    $studentMarkHistory->save(false);
-
-                                    $oldVedomst = $studentMark->vedomst;
-                                    $studentMark->vedomst = $studentVedomst;
-                                    $studentMark->update(false);
-
-                                    $finalExam = FinalExam::findOne([
-                                        'vedomst' => $studentMark->vedomst,
-                                        'edu_semestr_exams_type_id' => $studentMark->edu_semestr_exams_type_id,
-                                        'is_deleted' => 0
-                                    ]);
-                                    if ($finalExam) {
-                                        if ($finalExam->status > 1) {
-                                            $errors[] = _e("The exam is over.");
-                                        }
-                                    } else {
-
-                                        $stdVedomst = StudentMarkVedomst::findOne([
-                                            'student_mark_id' => $studentMark->id,
-                                            'passed' => 1,
-                                            'is_deleted' => 0
-                                        ]);
-
-                                        if ($stdVedomst) {
-                                            $errors[] = _e("You cannot change the information!");
-                                        }  else {
-                                            $isPassed = StudentMarkVedomst::findOne([
-                                                'vedmost' => $oldVedomst,
-                                                'student_mark_id' => $studentMark->id,
-                                                'is_deleted' => 0
-                                            ]);
-                                            if ($isPassed->passed = 0) {
-                                                $isPassed->type = 0;
-                                            }
-                                            $query = StudentMarkVedomst::findOne([
-                                                'vedmost' => $studentVedomst,
-                                                'student_mark_id' => $studentMark->id,
-                                                'is_deleted' => 0
-                                            ]);
-                                            $query->type = 1;
-                                            $query->save(false);
-                                        }
-
-
-
-                                    }
-
-
-                                }
-                            }
-
-                        }
-                    }
-
-                }
-            }
-        } else {
-            $errors[] = ['student_ids' => _e('Students ID not found')];
-        }
-
-        if (count($errors) == 0) {
-            $transaction->commit();
-            return true;
-        } else {
-            $transaction->rollBack();
-            return simplify_errors($errors);
-        }
-    }
-
-    public static function markHistory($mark)
-    {
-        $new = new MarkHistory();
-        $new->student_mark_id = $mark->id;
-        $new->user_id = current_user_id();
-        $new->ball = $mark->ball;
-        $new->update_time = time();
-        $new->ip = getIpMK();
-        $new->save(false);
-    }
+    // /**
+    //  * {@inheritdoc}
+    //  * @return StudentMarkQuery the active query used by this AR class.
+    //  */
+    // public static function find()
+    // {
+    //     return new StudentMarkQuery(get_called_class());
+    // }
 
     public function beforeSave($insert)
     {

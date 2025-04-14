@@ -126,4 +126,12 @@ class PasswordEncrypts extends \yii\db\ActiveRecord
             return simplify_errors($errors);
         }
     }
+
+
+    public function beforeSave($insert)
+    {
+        $this->created_by = current_user_id();
+
+        return parent::beforeSave($insert);
+    }
 }

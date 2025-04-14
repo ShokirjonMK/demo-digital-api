@@ -14,10 +14,6 @@ use yii\behaviors\TimestampBehavior;
  * @property int $course_id
  * @property int $semestr_id
  * @property int $edu_year_id
- * @property int $edu_type_id
- * @property int $edu_form_id
- * @property int $faculty_id
- * @property int $direction_id
  * @property string|null $start_date
  * @property string|null $end_date
  * @property int|null $is_checked
@@ -35,7 +31,6 @@ use yii\behaviors\TimestampBehavior;
  * @property EduYear $eduYear
  * @property Semestr $semestr
  * @property EduSemestrSubject[] $eduSemestrSubjects
- * @property EduSemestrExamsType[] $eduSemestrExamsTypes
  */
 class EduSemestr extends \yii\db\ActiveRecord
 {
@@ -64,49 +59,16 @@ class EduSemestr extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [
-                [
-                    'edu_plan_id',
-                    'type',
-                    'course_id',
-//                    'semestr_id',
-                    'edu_year_id',
-                    'edu_type_id',
-                    'edu_form_id',
-                    'faculty_id',
-                    'direction_id',
-                ],
-                'required'],
-            [
-                ['edu_plan_id',
-                    'course_id',
-                    'optional_subject_count',
-                    'required_subject_count',
-                    'semestr_id', 'edu_year_id',
-                    'is_checked',
-                    'edu_type_id',
-                    'edu_form_id',
-                    'faculty_id',
-                    'direction_id',
-                    'order', 'status', 'created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted',
-                ], 'integer'],
+            [['edu_plan_id', 'course_id', 'semestr_id', 'edu_year_id'], 'required'],
+            [['edu_plan_id', 'course_id', 'optional_subject_count', 'required_subject_count', 'semestr_id', 'edu_year_id', 'is_checked', 'order', 'status', 'created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted'], 'integer'],
             [['start_date', 'end_date'], 'safe'],
             [['credit'], 'double'],
-            [
-                ['start_date'],
-                'compare',
-                'compareValue' => 'end_date',
-                'operator' => '<',
-                'message' => _e('The end time must be greater than the start time.')
-            ],
+            [['one_credit_sum'], 'double'],
+            [['all_credit_sum'], 'double'],
             [['course_id'], 'exist', 'skipOnError' => true, 'targetClass' => Course::className(), 'targetAttribute' => ['course_id' => 'id']],
-            [['semestr_id'], 'exist', 'skipOnError' => true, 'targetClass' => Semestr::className(), 'targetAttribute' => ['semestr_id' => 'id']],
             [['edu_plan_id'], 'exist', 'skipOnError' => true, 'targetClass' => EduPlan::className(), 'targetAttribute' => ['edu_plan_id' => 'id']],
             [['edu_year_id'], 'exist', 'skipOnError' => true, 'targetClass' => EduYear::className(), 'targetAttribute' => ['edu_year_id' => 'id']],
-            [['edu_type_id'], 'exist', 'skipOnError' => true, 'targetClass' => EduType::className(), 'targetAttribute' => ['edu_type_id' => 'id']],
-            [['edu_form_id'], 'exist', 'skipOnError' => true, 'targetClass' => EduForm::className(), 'targetAttribute' => ['edu_form_id' => 'id']],
-            [['faculty_id'], 'exist', 'skipOnError' => true, 'targetClass' => Faculty::className(), 'targetAttribute' => ['faculty_id' => 'id']],
-            [['direction_id'], 'exist', 'skipOnError' => true, 'targetClass' => Direction::className(), 'targetAttribute' => ['direction_id' => 'id']],
+            [['semestr_id'], 'exist', 'skipOnError' => true, 'targetClass' => Semestr::className(), 'targetAttribute' => ['semestr_id' => 'id']],
         ];
     }
 
@@ -155,7 +117,8 @@ class EduSemestr extends \yii\db\ActiveRecord
             'edu_year_id',
             'start_date',
             'end_date',
-            'type',
+            'one_credit_sum',
+            'all_credit_sum',
             'is_checked',
             'order',
             'status',
@@ -171,7 +134,6 @@ class EduSemestr extends \yii\db\ActiveRecord
     public function extraFields()
     {
         $extraFields =  [
-            'weeks',
             'course',
             'eduPlan',
             'eduYear',
@@ -189,10 +151,11 @@ class EduSemestr extends \yii\db\ActiveRecord
     public function getGenerateName()
     {
         if (isset($this->eduYear)) {
+
             if (isset($this->eduYear->translate)) {
                 return $this->eduYear->translate->name . '-' . $this->course->id . '-' . $this->semestr->id;
             }
-            return $this->eduYear->start_year . '-' . $this->eduYear->end_year . '-' .$this->eduYear->type;
+            return $this->eduYear->year . '-' . date("Y", strtotime("+1 year", strtotime($this->eduYear->year . "-01-01")));
         }
         return ":) " . $this->course->id . '-' . $this->semestr->id;
     }
@@ -212,51 +175,9 @@ class EduSemestr extends \yii\db\ActiveRecord
      *
      * @return \yii\db\ActiveQuery
      */
-
     public function getEduPlan()
     {
         return $this->hasOne(EduPlan::className(), ['id' => 'edu_plan_id']);
-    }
-
-    // Semestrni hafta kunlarini boshlanish i tugash sanalarini hisoblaydi.
-    public function getWeeks()
-    {
-        $startDate = new \DateTime($this->start_date);
-        $start = $startDate->format('Y-m-d');
-        $endStartDate = $startDate->modify('next Sunday');
-        $end = $endStartDate->format('Y-m-d');
-        $endDate = new \DateTime($this->end_date);
-        $dates = [];
-        $dates[] = [
-            'week' => 1,
-            'start_date' => $start,
-            'end_date' => $end,
-        ];
-        $i = 2;
-        while ($endStartDate <= $endDate) {
-            $endStartDate->modify('+1 day');
-            $start = $endStartDate->format('Y-m-d');
-
-            $endStartDate->modify('next Sunday');
-            $end = $endStartDate->format('Y-m-d');
-            if ($end >= $endDate->format('Y-m-d')) {
-                $end = $endDate->format('Y-m-d');
-            }
-
-            $status = 0;
-            if ($start <= date("Y-m-d") && $end >= date("Y-m-d")) {
-                $status = 1;
-            }
-
-            $dates[] = [
-                'week' => $i,
-                'start_date' => $start,
-                'end_date' => $end,
-                'status' => $status
-            ];
-            $i++;
-        }
-        return $dates;
     }
 
     /**
@@ -267,22 +188,6 @@ class EduSemestr extends \yii\db\ActiveRecord
     public function getEduYear()
     {
         return $this->hasOne(EduYear::className(), ['id' => 'edu_year_id']);
-    }
-    public function getEduType()
-    {
-        return $this->hasOne(EduType::className(), ['id' => 'edu_type_id']);
-    }
-    public function getEduForm()
-    {
-        return $this->hasOne(EduForm::className(), ['id' => 'edu_form_id']);
-    }
-    public function getFaculty()
-    {
-        return $this->hasOne(Faculty::className(), ['id' => 'faculty_id']);
-    }
-    public function getDirection()
-    {
-        return $this->hasOne(Direction::className(), ['id' => 'direction_id']);
     }
 
     /**
@@ -300,10 +205,9 @@ class EduSemestr extends \yii\db\ActiveRecord
      *
      * @return \yii\db\ActiveQuery
      */
-
     public function getEduSemestrSubjects()
     {
-        return $this->hasMany(EduSemestrSubject::className(), ['edu_semestr_id' => 'id'])->where(['is_deleted' => 0, 'status' => 1]);
+        return $this->hasMany(EduSemestrSubject::className(), ['edu_semestr_id' => 'id']);
     }
 
     /**
@@ -361,9 +265,9 @@ class EduSemestr extends \yii\db\ActiveRecord
     public function beforeSave($insert)
     {
         if ($insert) {
-            $this->created_by = current_user_id();
+            $this->created_by = Current_user_id();
         } else {
-            $this->updated_by = current_user_id();
+            $this->updated_by = Current_user_id();
         }
         return parent::beforeSave($insert);
     }

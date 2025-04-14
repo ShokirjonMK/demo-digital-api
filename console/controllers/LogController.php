@@ -19,13 +19,13 @@ class LogController extends Controller
             file_put_contents(__DIR__ . '/../../config.boot.php', $defile_LOGS, FILE_APPEND | LOCK_EX);
         }
 
-//        if (!file_exists(LOGS_PATH . self::MONTH_LOG)) {
-//            mkdir(LOGS_PATH . self::MONTH_LOG, 0777, true);
-//        }
-//
-//        if (!file_exists(LOGS_PATH . self::DAIRLY_LOG)) {
-//            mkdir(LOGS_PATH . self::DAIRLY_LOG, 0777, true);
-//        }
+        //        if (!file_exists(LOGS_PATH . self::MONTH_LOG)) {
+        //            mkdir(LOGS_PATH . self::MONTH_LOG, 0777, true);
+        //        }
+        //
+        //        if (!file_exists(LOGS_PATH . self::DAIRLY_LOG)) {
+        //            mkdir(LOGS_PATH . self::DAIRLY_LOG, 0777, true);
+        //        }
 
         $this->setLogStatus(true);
         $this->stdout("\n\n Logging started ...\n\n", Console::FG_GREEN);
@@ -48,8 +48,9 @@ class LogController extends Controller
     public function actionStatus()
     {
         $this->setLogStatus(false);
-        $this->stdout("\n\n " . Yii::$app->params['mkStatusLogging']. "  \n\n", Console::BG_YELLOW);
+        $this->stdout("\n\n " .'Status is'. Yii::$app->params['mkStatusLogging'] . "....  \n\n", Console::BG_YELLOW);
     }
+
 
     public function actionCreate()
     {
@@ -86,7 +87,7 @@ class LogController extends Controller
             }
         }
 
-//        dd($file);
+        //        dd($file);
 
         $base_directory = \Yii::getAlias($dairly_logs_dir . 'log-' . date("Y-m-d", strtotime("-1 days")) . '.json');
         if (file_exists($base_directory)) {
@@ -145,7 +146,7 @@ class LogController extends Controller
         $bigData = json_decode($str);
 
         foreach ($bigData as $datum) {
-            // dd($datum);
+            dd($datum);
             $action_log = new ActionLog();
             $action_log->user_id = $datum->user_id;
             $action_log->data = $datum->data;
@@ -163,7 +164,7 @@ class LogController extends Controller
             $action_log->created_on = date("d-m-Y", strtotime($date));
             $action_log->save();
 
-            // dd($action_log);
+            dd($action_log);
         }
     }
 
@@ -257,13 +258,10 @@ class LogController extends Controller
                     $action_log->save(false);
                 }
                 $this->stdout("\n\n Success ...\n\n", Console::FG_GREEN);
-
             } else {
                 $this->stdout("\n\n Data is null :)  ...\n\n", Console::BG_GREY);
-
             }
         }
-
     }
 
 

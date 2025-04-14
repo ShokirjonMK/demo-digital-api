@@ -20,7 +20,6 @@ class ParaController extends ApiActiveController
     }
 
     public $table_name = 'para';
-
     public $controller_name = 'Para';
 
     public function actionIndex($lang)
@@ -110,5 +109,7 @@ class ParaController extends ApiActiveController
         }
         return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::BAD_REQUEST);
     }
+
+
 
 }

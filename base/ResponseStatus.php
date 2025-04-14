@@ -31,8 +31,7 @@ class ResponseStatus
     const METHOD_NOT_ALLOWED = 405;
     const GONE = 410;
     const UNSOPPORTED_MEDIA_TYPE = 415;
-
     const UPROCESSABLE_ENTITY = 422;
-    const TOO_MANY_REQUESTS = 422;
+    const TOO_MANY_REQUESTS = 429;
 
 }

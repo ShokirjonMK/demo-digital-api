@@ -3,7 +3,7 @@
 function assets_url($url = false)
 {
    $assets_url = Yii::$app->params['assets_url'];
-    // $assets_url = "http://e.utas.uz/";
+    // $assets_url = "http://digital.tsul.uz/";
     if ($url) {
         return $assets_url . $url;
     }

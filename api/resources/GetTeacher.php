@@ -55,7 +55,9 @@ class GetTeacher extends CommonUser
             'avatar' => function ($model) {
                 return $model->profile->image ?? '';
             },
+
         ];
+
         return $fields;
     }
 

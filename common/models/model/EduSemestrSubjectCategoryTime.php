@@ -12,8 +12,6 @@ use yii\behaviors\TimestampBehavior;
  * @property int $id
  * @property int $edu_semestr_subject_id
  * @property int $subject_category_id
- * @property int $subject_id
- * @property int $edu_semestr_id
  * @property int $hours
  * @property int|null $order
  * @property int|null $status
@@ -52,12 +50,10 @@ class EduSemestrSubjectCategoryTime extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['edu_semestr_subject_id', 'subject_category_id', 'hours' , 'edu_semestr_id', 'subject_id'], 'required'],
-            [['edu_semestr_id', 'subject_id' ,'edu_semestr_subject_id', 'subject_category_id', 'hours', 'order', 'status', 'created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted'], 'integer'],
+            [['edu_semestr_subject_id', 'subject_category_id', 'hours'], 'required'],
+            [['edu_semestr_subject_id', 'subject_category_id', 'hours', 'order', 'status', 'created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted'], 'integer'],
             [['edu_semestr_subject_id'], 'exist', 'skipOnError' => true, 'targetClass' => EduSemestrSubject::className(), 'targetAttribute' => ['edu_semestr_subject_id' => 'id']],
             [['subject_category_id'], 'exist', 'skipOnError' => true, 'targetClass' => SubjectCategory::className(), 'targetAttribute' => ['subject_category_id' => 'id']],
-            [['edu_semestr_id'], 'exist', 'skipOnError' => true, 'targetClass' => EduSemestr::className(), 'targetAttribute' => ['edu_semestr_id' => 'id']],
-            [['subject_id'], 'exist', 'skipOnError' => true, 'targetClass' => Subject::className(), 'targetAttribute' => ['subject_id' => 'id']],
         ];
     }
 
@@ -107,8 +103,6 @@ class EduSemestrSubjectCategoryTime extends \yii\db\ActiveRecord
         $extraFields =  [
             'eduSemestrSubject',
             'subjectCategory',
-            'subject',
-            'freeHour',
             'createdBy',
             'updatedBy',
             'createdAt',
@@ -118,30 +112,6 @@ class EduSemestrSubjectCategoryTime extends \yii\db\ActiveRecord
         return $extraFields;
     }
 
-
-    public function getSubject()
-    {
-        return $this->hasOne(Subject::className(), ['id' => 'subject_id']);
-    }
-
-    public function getFreeHour()
-    {
-        $groupId = Yii::$app->request->get('group_id');
-        $query = TimetableDate::find()
-            ->where([
-                'group_id' => $groupId,
-                'edu_semestr_subject_id' => $this->edu_semestr_subject_id,
-                'subject_category_id' => $this->subject_category_id,
-                'group_type' => 1,
-                'status' => 1,
-                'is_deleted' => 0
-            ])->count();
-        $freeHour = ($this->hours / 2) - $query;
-        if ($freeHour > 0) {
-            return $freeHour;
-        }
-        return 0;
-    }
 
     public static function createItem($model, $post)
     {

@@ -13,9 +13,6 @@ class SemestrController extends ApiActiveController
 {
     public $modelClass = 'api\resources\Semestr';
 
-    const TYPE_FALL = 1;
-    const TYPE_SPRING = 2;
-
     public function actions()
     {
         return [];
@@ -35,7 +32,7 @@ class SemestrController extends ApiActiveController
             // ->join("INNER JOIN", "translate tr", "tr.model_id = $this->table_name.id and tr.table_name = '$this->table_name'" )
             ->leftJoin("translate tr", "tr.model_id = $this->table_name.id and tr.table_name = '$this->table_name'")
             ->groupBy($this->table_name . '.id')
-//             ->andWhere(['tr.language' => Yii::$app->request->get('lang')])
+            // ->andWhere(['tr.language' => Yii::$app->request->get('lang')])
             // ->andWhere(['tr.tabel_name' => 'faculty'])
             ->andFilterWhere(['like', 'tr.name', Yii::$app->request->get('query')]);
 
@@ -52,7 +49,7 @@ class SemestrController extends ApiActiveController
 
     public function actionCreate($lang)
     {
-//        return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::FORBIDDEN);
+        return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::FORBIDDEN);
         $model = new Semestr();
         $post = Yii::$app->request->post();
         $this->load($model, $post);
@@ -67,7 +64,6 @@ class SemestrController extends ApiActiveController
 
     public function actionUpdate($lang, $id)
     {
-        return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::FORBIDDEN);
         $model = Semestr::findOne($id);
         if (!$model) {
             return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
@@ -114,19 +110,4 @@ class SemestrController extends ApiActiveController
         }
         return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::BAD_REQUEST);
     }
-
-    public function typesArray($key = null)
-    {
-        $array = [
-            self::TYPE_FALL => 'KUZGI',
-            self::TYPE_SPRING => 'BAHORGI',
-        ];
-
-        if (isset($array[$key])) {
-            return $array[$key];
-        }
-
-        return $array;
-    }
-
 }

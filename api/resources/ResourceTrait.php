@@ -8,8 +8,6 @@ use common\models\model\Translate;
 use Yii;
 use yii\behaviors\BlameableBehavior;
 use yii\behaviors\TimestampBehavior;
-use Da\QrCode\QrCode;
-use api\resources\User;
 
 trait ResourceTrait
 {
@@ -74,6 +72,7 @@ trait ResourceTrait
         return date('Y-m-d H:i:s', $this->updated_at);
     }
 
+
     public static function createFromTable($nameArr, $table_name, $model_id)
     {
         $transaction = Yii::$app->db->beginTransaction();
@@ -97,152 +96,182 @@ trait ResourceTrait
 
     public static function teacher_access_user_id($teacher_access_id)
     {
-        return TeacherAccess::findOne($teacher_access_id)
-            ->user_id ?? null;
+        $teacherAccess = TeacherAccess::findOne($teacher_access_id);
+        return $teacherAccess ? $teacherAccess->user_id : null;
     }
 
-    public static function student_now($type = null, $user_id = null)
+    public static function student_now($type = 1, $user_id = null)
     {
-        if ($user_id == null) {
-            $user_id = current_user_id();
-        }
-        if ($type == null) {
-            $type = 1;
-        }
+        // Agar $user_id berilmagan bo'lsa, uning qiymatini joriy foydalanuvchidan oling
+        $user_id = $user_id ?? current_user_id();
+
+        // Talabani toping, aks holda null qaytaring
         $student = Student::findOne(['user_id' => $user_id]);
-        if ($type == 1) {
-            return $student->id ?? null;
-        } elseif ($type == 2) {
-            return $student ?? null;
+        if ($student === null) {
+            return null;
         }
-    }
 
-    public static function student($type = null, $user_id = null)
+        // Turiga qarab natijani qaytaring
+        return ($type === 1) ? $student->id : $student;
+    }
+    // public static function student_now00($type = null, $user_id = null)
+    // {
+    //     if ($user_id == null) {
+    //         $user_id = current_user_id();
+    //     }
+    //     if ($type == null) {
+    //         $type = 1;
+    //     }
+    //     $student = Student::findOne(['user_id' => $user_id]);
+    //     if ($type == 1) {
+    //         return  $student->id ?? null;
+    //     } elseif ($type == 2) {
+    //         return  $student ?? null;
+    //     }
+    // }
+
+    public static function student($type = 1, $user_id = null)
     {
-        if ($user_id == null) {
-            $user_id = current_user_id();
-        }
-        if ($type == null) {
-            $type = 1;
-        }
+        // Agar $user_id berilmagan bo'lsa, uning qiymatini joriy foydalanuvchidan oling
+        $user_id = $user_id ?? current_user_id();
+
+        // Talabani toping, aks holda null qaytaring
         $student = Student::findOne(['user_id' => $user_id]);
-        if ($type == 1) {
-            return $student->id ?? null;
-        } elseif ($type == 2) {
-            return $student ?? null;
+        if ($student === null) {
+            return null;
+        }
+
+        // Turiga qarab natijani qaytaring
+        if ($type === 1) {
+            return $student->id;
+        }
+
+        if ($type === 2) {
+            return $student;
         }
     }
+    // public static function student00($type = null, $user_id = null)
+    // {
+    //     if ($user_id == null) {
+    //         $user_id = current_user_id();
+    //     }
+    //     if ($type == null) {
+    //         $type = 1;
+    //     }
+    //     $student = Student::findOne(['user_id' => $user_id]);
+    //     if ($type == 1) {
+    //         return  $student->id ?? null;
+    //     } elseif ($type == 2) {
+    //         return  $student ?? null;
+    //     }
+    // }
 
-    public static function findByStudentId($id, $type = null)
+    public static function findByStudentId($id, $type = 1)
     {
-        if ($type == null) {
-            $type = 1;
-        }
         $student = Student::findOne(['id' => $id]);
-        if ($type == 1) {
-            return $student->user_id ?? null;
-        } elseif ($type == 2) {
-            return $student ?? null;
+
+        // Early return if no student found
+        if ($student === null) {
+            return null;
         }
+
+        if ($type === 1) {
+            return $student->user_id;
+        }
+
+        if ($type === 2) {
+            return $student;
+        }
+
+        // Optionally, handle invalid type values here
     }
+    // public static function findByStudentId00($id, $type = null)
+    // {
+    //     if ($type == null) {
+    //         $type = 1;
+    //     }
+    //     $student = Student::findOne(['id' => $id]);
+    //     if ($type == 1) {
+    //         return  $student->user_id ?? null;
+    //     } elseif ($type == 2) {
+    //         return  $student ?? null;
+    //     }
+    // }
 
-    public static function teacher_access($type = null, $select = [], $user_id = null)
+    public static function teacher_access($type = 1, $select = ['id'], $user_id = null)
     {
-        if (is_null($user_id)) {
-            $user_id = current_user_id();
-        }
+        // Set the default user_id to current_user_id if null
+        $user_id = $user_id ?? current_user_id();
 
-        if (is_null($type)) {
-            $type = 1;
-        }
-
-        if (empty($select)) {
-            $select = ['id'];
-        }
-        if ($type == 1) {
-            return TeacherAccess::find()
-                ->where(['user_id' => $user_id, 'is_deleted' => 0])
-                ->andWhere(['in', 'subject_id', Subject::find()
+        // Common query part
+        $query = TeacherAccess::find()
+            ->where(['user_id' => $user_id, 'is_deleted' => 0])
+            ->andWhere([
+                'in',
+                'subject_id',
+                Subject::find()
                     ->where(['is_deleted' => 0])
-                    ->select('id')])
-                ->select($select);
-        } elseif ($type == 2) {
-            return TeacherAccess::find()
-                ->asArray()
-                ->where(['user_id' => $user_id, 'is_deleted' => 0])
-                ->andWhere(['in', 'subject_id', Subject::find()
-                    ->where(['is_deleted' => 0])
-                    ->select('id')])
-                ->select($select)
-                ->all();
+                    ->select('id')
+            ])
+            ->select($select);
+
+        if ($type === 1) {
+            return $query;
         }
+
+        if ($type === 2) {
+            return $query->asArray()->all();
+        }
+
+        // Optionally, handle invalid type values here
+    }
+    // public static function teacher_access00($type = null, $select = [], $user_id = null)
+    // {
+    //     if (is_null($user_id)) {
+    //         $user_id = current_user_id();
+    //     }
+
+    //     if (is_null($type)) {
+    //         $type = 1;
+    //     }
+
+    //     if (empty($select)) {
+    //         $select = ['id'];
+    //     }
+    //     if ($type == 1) {
+    //         return TeacherAccess::find()
+    //             ->where(['user_id' => $user_id, 'is_deleted' => 0])
+    //             ->andWhere(['in', 'subject_id', Subject::find()
+    //                 ->where(['is_deleted' => 0])
+    //                 ->select('id')])
+    //             ->select($select);
+    //     } elseif ($type == 2) {
+    //         return TeacherAccess::find()
+    //             ->asArray()
+    //             ->where(['user_id' => $user_id, 'is_deleted' => 0])
+    //             ->andWhere(['in', 'subject_id', Subject::find()
+    //                 ->where(['is_deleted' => 0])
+    //                 ->select('id')])
+    //             ->select($select)
+
+    //             ->all();
+    //     }
+    // }
+
+    public static function encodemk5MK($key)
+    {
+        return str_replace('=', '', base64_encode(base64_encode($key . "DEV"))); // Encode string using Base64 // Output: SGVsbG8gV29ybGQh
     }
 
-    public function orderCreate($order, $data, $tableName)
+    public static function decodemk5MK($key)
     {
-        $orderDescOne = $tableName->find()
-            ->where($data)
-            ->orderBy('order desc')
-            ->one();
-        if (isset($orderDescOne)) {
-            if ($orderDescOne->order + 1 < $order) {
-                $model->order = $orderDescOne->order + 1;
-            } elseif ($orderDescOne->order > $order) {
-                $orderUpdate = $tableName->find()->where([
-                    'between', 'order', $order, $orderDescOne->order
-                ])
-                    ->andWhere($data)
-                    ->all();
-                if (isset($orderUpdate)) {
-                    foreach ($orderUpdate as $orderItem) {
-                        $orderItem->order = $orderItem->order + 1;
-                        $orderItem->save();
-                    }
-                }
-            } elseif ($orderDescOne->order == $order) {
-                $orderDescOne->order = $orderDescOne->order + 1;
-                $orderDescOne->save();
-            }
-        } else {
-            $model->order = 1;
-        }
-    }
-
-    public function orderUpdate($order, $data, $tableName, $modelOrder)
-    {
-
-        if ($order < $modelOrder) {
-            $orderUpdate = $tableName->find()->where([
-                'between', 'order', $order - 1, $modelOrder
-            ])->andWhere($data)->all();
-
-            if (isset($orderUpdate)) {
-                foreach ($orderUpdate as $orderItem) {
-                    $orderItem->order = $orderItem->order + 1;
-                    $orderItem->save(false);
-                }
-            }
-        }
-
-        if ($order > $modelOrder) {
-            $orderUpdate = $tableName->find()->where([
-                'between', 'order', $modelOrder + 1, $order
-            ])->andWhere($data)->all();
-
-            if (isset($orderUpdate)) {
-                foreach ($orderUpdate as $orderItem) {
-                    $orderItem->order = $orderItem->order - 1;
-                    $orderItem->save(false);
-                }
-            }
-        }
-
+        return base64_decode($key); // Encode string using Base64 // Output: SGVsbG8gV29ybGQh
     }
 
     public static function encodeMK($key)
     {
         $str = '';
-        foreach (str_split((string)$key) as $one) {
+        foreach (str_split((string) $key) as $one) {
 
             $symKey = (int)$one + 97;
             $str .= chr($symKey);
@@ -250,30 +279,13 @@ trait ResourceTrait
         return $str;
     }
 
-//    public static function qrCode($user_id)
-//    {
-//        $user = User::findOne($user_id);
-//        $profile = $user->profile;
-//        $fullName = $profile->last_name . " " . $profile->first_name . " " . $profile->middle_name;
-//        $position = $user->position;
-//        $date = date("d-m-Y H:i:s");
-//
-//        // Sh, Ch, O', G'
-//        $text = $profile->first_name . " " . $profile->last_name . PHP_EOL . $position . PHP_EOL . date("d-m-Y H:i:s");
-//
-//        $qrCode = (new QrCode($text))
-//            ->setSize(120)
-//            ->setMargin(5);
-//
-//        return $qrCode->writeDataUri();
-//    }
 
-    public static function decodeMK($string)
+    public static function decodeFromLetterMK($string)
     {
         // return $string;
         // $string = "ejdg-biebc";
         $num = '';
-        foreach (str_split((string)$string) as $one) {
+        foreach (str_split((string) $string) as $one) {
             if ($one == "-") {
                 $num .= $one;
             } else {
@@ -282,5 +294,18 @@ trait ResourceTrait
         }
         return $num;
     }
-
+    public static function decodeMK($string)
+    {
+        // return $string;
+        // $string = "ejdg-biebc";
+        $num = '';
+        foreach (str_split((string) $string) as $one) {
+            if ($one == "-") {
+                $num .= $one;
+            } else {
+                $num .= ((int)ord($one) - 97);
+            }
+        }
+        return $num;
+    }
 }

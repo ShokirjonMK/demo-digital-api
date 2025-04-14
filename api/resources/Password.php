@@ -44,7 +44,9 @@ class Password extends Model
         $pass = PasswordEncrypts::find()
             ->where(['user_id' => $user->id])
             ->one();
+
         if (isset($pass)) {
+
             $key = Keys::findOne($pass->key_id);
             $dec_m = new EncryptPass();
             $ded = $dec_m->decrypt($pass->password, $key->name);

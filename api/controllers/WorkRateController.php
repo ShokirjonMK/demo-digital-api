@@ -2,8 +2,6 @@
 
 namespace api\controllers;
 
-use common\models\model\Building;
-use common\models\model\WorkLoad;
 use common\models\model\WorkRate;
 use Yii;
 use base\ResponseStatus;
@@ -11,7 +9,7 @@ use common\models\model\Translate;
 
 class WorkRateController extends ApiActiveController
 {
-    public $modelClass = 'api\resources\Building';
+    public $modelClass = 'api\resources\WorkRate';
 
     public function actions()
     {
@@ -24,7 +22,14 @@ class WorkRateController extends ApiActiveController
     public function actionIndex($lang)
     {
         $model = new WorkRate();
-        $query = $model->find()->where(['is_deleted' => 0]);
+
+        $query = $model->find()
+            ->with(['infoRelation'])
+            // ->andWhere([$this->table_name . '.is_deleted' => 0])
+            ->leftJoin("translate tr", "tr.model_id = $this->table_name.id and tr.table_name = '$this->table_name'")
+            ->groupBy($this->table_name . '.id')
+
+            ->andFilterWhere(['like', 'tr.name', Yii::$app->request->get('query')]);
 
         // filter
         $query = $this->filterAll($query, $model);
@@ -39,7 +44,6 @@ class WorkRateController extends ApiActiveController
 
     public function actionCreate($lang)
     {
-//        return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::NOT_FOUND);
         $model = new WorkRate();
         $post = Yii::$app->request->post();
         $this->load($model, $post);
@@ -54,7 +58,6 @@ class WorkRateController extends ApiActiveController
 
     public function actionUpdate($lang, $id)
     {
-        return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::NOT_FOUND);
         $model = WorkRate::findOne($id);
         if (!$model) {
             return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
@@ -71,7 +74,6 @@ class WorkRateController extends ApiActiveController
 
     public function actionView($lang, $id)
     {
-//        return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::NOT_FOUND);
         $model = WorkRate::find()
             ->andWhere(['id' => $id, 'is_deleted' => 0])
             ->one();
@@ -83,9 +85,8 @@ class WorkRateController extends ApiActiveController
 
     public function actionDelete($lang, $id)
     {
-        return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::NOT_FOUND);
         $model = WorkRate::find()
-            ->andWhere(['id' => $id, 'is_deleted' => 0])
+            ->andWhere(['id' => $id])
             ->one();
 
         if (!$model) {
@@ -94,9 +95,8 @@ class WorkRateController extends ApiActiveController
 
         // remove model
         if ($model) {
-            // Translate::deleteTranslate($this->table_name, $model->id);
-            $model->is_deleted = 1;
-            $model->update();
+            Translate::deleteTranslate($this->table_name, $model->id);
+            $model->delete();
 
             return $this->response(1, _e($this->controller_name . ' succesfully removed.'), null, null, ResponseStatus::OK);
         }

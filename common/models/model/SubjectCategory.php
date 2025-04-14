@@ -25,9 +25,6 @@ use yii\behaviors\TimestampBehavior;
 class SubjectCategory extends \yii\db\ActiveRecord
 {
 
-    const AUDITORY_TIME = 1;
-    const AUDITORY_IS_NOT_TIME = 2;
-
     public static $selected_language = 'uz';
     use ResourceTrait;
 
@@ -53,11 +50,30 @@ class SubjectCategory extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['type'], 'required'],
+            //            [['name'], 'required'],
             [['order', 'status', 'type', 'created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted'], 'integer'],
+            //            [['name'], 'string', 'max' => 255],
         ];
     }
 
+    /**
+     * {@inheritdoc}
+     */
+    public function attributeLabels()
+    {
+        return [
+            'id' => 'ID',
+            //            'name' => 'Name'/,
+            'order' => _e('Order'),
+            'type' => _e('type'),
+            'status' => _e('Status'),
+            'created_at' => _e('Created At'),
+            'updated_at' => _e('Updated At'),
+            'created_by' => _e('Created By'),
+            'updated_by' => _e('Updated By'),
+            'is_deleted' => _e('Is Deleted'),
+        ];
+    }
 
     public function fields()
     {
@@ -66,6 +82,7 @@ class SubjectCategory extends \yii\db\ActiveRecord
             'name' => function ($model) {
                 return $model->translate->name ?? '';
             },
+            'order',
             'type',  
             'status',
             'created_at',

@@ -64,6 +64,7 @@ class AuthItem extends CommonAuthItem
             'permissions',
             'parent',
             'child',
+
         ];
 
         return $extraFields;
@@ -79,38 +80,6 @@ class AuthItem extends CommonAuthItem
         return AuthChildRes::find()->where(['parent' => $this->name])->all();
     }
 
-    public static function createPermission($model, $post) {
-        $transaction = Yii::$app->db->beginTransaction();
-        $errors = [];
-
-        if (!($model->validate())) {
-            $errors[] = $model->errors;
-            $transaction->rollBack();
-            return simplify_errors($errors);
-        }
-
-        if ($model->save()) {
-
-            $isOldAuthItemChild = AuthItemChild::findOne([
-                'parent' => 'admin',
-                'child' => $model->name
-            ]);
-            if (!$isOldAuthItemChild) {
-                $authItemChild = new AuthItemChild();
-                $authItemChild->parent = 'admin';
-                $authItemChild->child = $model->name;
-                if (!$authItemChild->save(false)) {
-                    $errors[] = $authItemChild->getErrorSummary(true);
-                }
-            }
-            if (count($errors) == 0) {
-                $transaction->commit();
-                return true;
-            }
-        }
-        $transaction->rollBack();
-        return simplify_errors($errors);
-    }
     public static function createRole($body)
     {
         $transaction = Yii::$app->db->beginTransaction();
@@ -199,8 +168,6 @@ class AuthItem extends CommonAuthItem
                 } else {
                     $role->description = $obj->description;
                     AuthItemChild::deleteAll(['parent' => $obj->role]);
-                    AuthChild::deleteAll(['parent' => $obj->role]);
-                    AuthChild::deleteAll(['child' => $obj->role]);
                     foreach ($obj->permissions as $permission) {
                         // check permission
                         $permissionItem = AuthItem::find()->where(['name' => $permission, 'type' => AuthItem::TYPE_PERMISSION])->one();

@@ -3,34 +3,40 @@
 namespace common\models\model;
 
 use api\resources\ResourceTrait;
+use api\resources\User;
 use Yii;
 use yii\behaviors\TimestampBehavior;
 
 /**
- * This is the model class for table "action_log".
+ * This is the model class for table "action".
  *
  * @property int $id
- * @property int|null $created_at
- * @property string|null $controller
- * @property string|null $action
- * @property string|null $method
- * @property int|null $user_id
- * @property string|null $result
- * @property string|null $errors
- * @property string|null $data
- * @property string|null $post_data
- * @property string|null $get_data
- * @property string|null $message
- * @property string|null $browser
- * @property string|null $ip_address
- * @property string|null $host
- * @property string|null $ip_address_data
- * @property string|null $log_date
+ * @property string $controller
+ * @property string $action
+ * @property string $method
+ * @property int $user_id
+ * @property int|null $order
  * @property int|null $status
-
+ * @property int|null $created_at
+ * @property int|null $updated_at
+ * @property int $created_by
+ * @property int $updated_by
+ * @property int $is_deleted
+ *
+ * @property Users $user
  */
 class ActionLog extends \yii\db\ActiveRecord
 {
+
+    use ResourceTrait;
+
+    public function behaviors()
+    {
+        return [
+            TimestampBehavior::class,
+        ];
+    }
+
 
     /**
      * {@inheritdoc}
@@ -43,14 +49,33 @@ class ActionLog extends \yii\db\ActiveRecord
     /**
      * {@inheritdoc}
      */
-
     public function rules()
     {
         return [
-            [['created_at', 'user_id', 'status'], 'integer'],
-            [['result', 'errors', 'data', 'post_data', 'get_data', 'browser', 'host', 'ip_address_data'], 'string'],
-            [['controller', 'action', 'method', 'message', 'log_date'], 'string', 'max' => 255],
+            [['user_id', 'order', 'status', 'created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted'], 'integer'],
+            [
+                [
+                    'controller',
+                    'action',
+                    // 'role',
+                    'method',
+                    'message'
+                ], 'string', 'max' => 255
+            ],
             [['ip_address'], 'string', 'max' => 33],
+            [
+                [
+                    'data',
+                    'get_data',
+                    'post_data',
+                    'result',
+                    'errors',
+                    'host',
+                    'ip_address_data',
+                    'browser'
+                ], 'string'
+            ],
+            [['user_id'], 'exist', 'skipOnError' => true, 'targetClass' => User::className(), 'targetAttribute' => ['user_id' => 'id']],
         ];
     }
 
@@ -60,66 +85,100 @@ class ActionLog extends \yii\db\ActiveRecord
     public function attributeLabels()
     {
         return [
-            'id' => _e('ID'),
-            'created_at' => _e('Created At'),
-            'controller' => _e('Controller'),
-            'action' => _e('Action'),
-            'method' => _e('Method'),
-            'user_id' => _e('User ID'),
-            'result' => _e('Result'),
-            'errors' => _e('Errors'),
-            'data' => _e('Data'),
-            'post_data' => _e('Post Data'),
-            'get_data' => _e('Get Data'),
-            'message' => _e('Message'),
-            'browser' => _e('Browser'),
-            'ip_address' => _e('Ip Address'),
-            'host' => _e('Host'),
-            'ip_address_data' => _e('Ip Address Data'),
-            'log_date' => _e('Log Date'),
+            'id' => 'ID',
+            'controller' => 'controller',
+            'action' => 'action',
+            'method' => 'method',
+            'user_id' => 'user_id',
+            'data' => 'data',
+            'get_data' => 'get_data',
+            'post_data' => 'post_data',
+            
+            'message' => 'message',
+            
+            'browser' => 'browser',
+            'ip_address' => 'ip_address',
+            
+            'created_on' => 'created_on',
+            'order' => _e('Order'),
             'status' => _e('Status'),
-                           
+            'created_at' => _e('Created At'),
+            'updated_at' => _e('Updated At'),
+            'created_by' => _e('Created By'),
+            'updated_by' => _e('Updated By'),
+            'is_deleted' => _e('Is Deleted'),
         ];
     }
 
-    public function fields()
-    {
-        $fields = [
-            'id',
-            'created_at',
-            'controller',
-            'action',
-            'method',
-            'user_id',
-            'result',
-            'errors',
-            'data',
-            'post_data',
-            'get_data',
-            'message',
-            'browser',
-            'ip_address',
-            'host',
-            'ip_address_data',
-            'log_date',
-            'status',
-        ];
-        return $fields;
-    }
-
-
-    public function extraFields()
-    {
-        $extraFields = [
-            'user',
-        ];
-
-        return $extraFields;
-    }
-
+    /**
+     * Gets query for [[User]].
+     *
+     * @return \yii\db\ActiveQuery
+     */
     public function getUser()
     {
         return $this->hasOne(User::className(), ['id' => 'user_id']);
     }
 
+
+    public function extraFields()
+    {
+        $extraFields =  [
+            'createdBy',
+            'updatedBy',
+            'createdAt',
+            'updatedAt',
+        ];
+
+        return $extraFields;
+    }
+
+
+    public static function createItem($model, $post)
+    {
+        $transaction = Yii::$app->db->beginTransaction();
+        $errors = [];
+
+        if (!($model->validate())) {
+            $errors[] = $model->errors;
+        }
+
+        if ($model->save()) {
+            $transaction->commit();
+            return true;
+        } else {
+            $transaction->rollBack();
+            return simplify_errors($errors);
+        }
+    }
+
+    public static function updateItem($model, $post)
+    {
+        $transaction = Yii::$app->db->beginTransaction();
+        $errors = [];
+
+        if (!($model->validate())) {
+            $errors[] = $model->errors;
+        }
+
+        if ($model->save()) {
+            $transaction->commit();
+            return true;
+        } else {
+            $transaction->rollBack();
+            return simplify_errors($errors);
+        }
+    }
+
+    public function beforeSave($insert)
+    {
+        if ($insert) {
+            $this->created_by = current_user_id();
+            $this->created_on = date("Y-m-d H:i:s");
+            $this->user_id   = current_user_id();
+        } else {
+            $this->updated_by = current_user_id();
+        }
+        return parent::beforeSave($insert);
+    }
 }

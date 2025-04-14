@@ -30,16 +30,9 @@ return [
                 ],
             ],
         ],
-        'user' => [
-            'class' => 'yii\web\User',
-            'identityClass' => 'common\models\User',
-            'enableSession' => false,
-            'enableAutoLogin' => false,
-        ],
     ],
     'on beforeRequest' => function () {
         // pass app id check
     },
     'params' => $params,
 ];
-

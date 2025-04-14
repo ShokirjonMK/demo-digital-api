@@ -5,6 +5,10 @@ namespace api\controllers;
 use common\models\model\Attend;
 use Yii;
 use base\ResponseStatus;
+use common\models\model\ExamControlStudent;
+use common\models\model\Kafedra;
+use common\models\model\Subject;
+use common\models\model\TimeTable;
 
 class AttendController extends ApiActiveController
 {
@@ -25,12 +29,14 @@ class AttendController extends ApiActiveController
         $query = $model->find()
             // ->with(['infoRelation'])
             // ->andWhere([$table_name.'.status' => 1, $table_name . '.is_deleted' => 0])
-            ->andWhere([$this->table_name . '.is_deleted' => 0])
-            // ->join("INNER JOIN", "translate tr", "tr.model_id = $this->table_name.id and tr.table_name = '$this->table_name'" )
+            ->andWhere([$model->tableName() . '.is_deleted' => 0])
+            ->andWhere([$this->table_name . '.archived' => 0])
+
+            // ->join("INNER JOIN", "translate tr", "tr.model_id = $model->tableName().id and tr.table_name = '$model->tableName()'" )
         ;
 
         // if (isRole('student')) {
-        //     $query->andWhere([$this->table_name . '.student_id' => $this->student()]);
+        //     $query->andWhere([$model->tableName() . '.student_id' => $this->student()]);
         // }
 
         // filter
@@ -46,16 +52,20 @@ class AttendController extends ApiActiveController
 
     public function actionCreate($lang)
     {
+        $model = new Attend();
         $post = Yii::$app->request->post();
         if (!isset($post['date'])) {
-            $post['date'] = date('Y-m-d H:i:s');
-        } else{
-            $post['date'] = date('Y-m-d H:i:s', strtotime($post['date']));
+            $post['date'] = date('Y-m-d');
         }
+        /* else{
+            $post['date'] = date('Y-m-d', strtotime($post['date']));
+        } */
 
-        $result = Attend::createItem($post);
+        $this->load($model, $post);
+
+        $result = Attend::createItem($model, $post);
         if (!is_array($result)) {
-            return $this->response(1, _e($this->controller_name . ' successfully created.'), null, null, ResponseStatus::CREATED);
+            return $this->response(1, _e($this->controller_name . ' successfully created.'), $model, null, ResponseStatus::CREATED);
         } else {
             return $this->response(0, _e('There is an error occurred while processing.'), null, $result, ResponseStatus::UPROCESSABLE_ENTITY);
         }
@@ -80,7 +90,7 @@ class AttendController extends ApiActiveController
         unset($post['edu_plan_id']);
         unset($post['type']);
         unset($post['semestr_id']);
-        
+
         $this->load($model, $post);
         $result = Attend::updateItem($model, $post, $student_ids);
         if (!is_array($result)) {
@@ -88,6 +98,76 @@ class AttendController extends ApiActiveController
         } else {
             return $this->response(0, _e('There is an error occurred while processing.'), null, $result, ResponseStatus::UPROCESSABLE_ENTITY);
         }
+    }
+
+    public function actionNot($date)
+    {
+        $model = new TimeTable();
+        $date = date("Y-m-d", strtotime($date));
+        $N = date('N', strtotime($date));
+        /*
+                    		
+            SELECT
+            	* 
+            	* 
+            FROM
+            	`time_table` 
+            WHERE
+            	( `time_table`.`is_deleted` = 0 ) 
+            	AND ( `time_table`.`archived` = 0 ) 
+            	AND ( `id` NOT IN ( SELECT `time_table_id` FROM `attend` WHERE `date` = '2023-04-19' ) ) 
+            	AND ( `time_table`.`week_id` = '3' )
+        */
+
+        $query = $model->find()
+            ->andWhere([$model->tableSchema->name . '.is_deleted' => 0])
+            ->andWhere([$model->tableSchema->name . '.archived' => 0]);
+
+
+        $k = $this->isSelf(Kafedra::USER_ACCESS_TYPE_ID);
+        if ($k['status'] == 1) {
+
+            $query->andFilterWhere([
+                'in', 'subject_id', Subject::find()->where([
+                    'kafedra_id' => $k['UserAccess']->table_id
+                ])->select('id')
+            ]);
+        }
+
+
+        if (isRole('teacher') && !isRole('mudir')) {
+            $query->andFilterWhere([
+                'teacher_user_id' => current_user_id()
+            ]);
+        }
+
+        $kafedraId = Yii::$app->request->get('kafedra_id');
+        if (isset($kafedraId)) {
+            $query->andFilterWhere([
+                'in', 'subject_id', Subject::find()->where([
+                    'kafedra_id' => $kafedraId
+                ])->select('id')
+            ]);
+        }
+
+        $query = $query->andWhere([
+            'not in', 'id', Attend::find()
+                ->select('time_table_id')
+                ->andWhere(['date' => $date])
+        ])
+            ->andWhere([$model->tableSchema->name . '.week_id' => $N]);
+
+        // filter
+        $query = $this->filterAll($query, $model);
+
+        // sort
+        $query = $this->sort($query);
+
+        // data
+        $data =  $this->getData($query);
+
+        // rawsql($query);
+        return $this->response(1, _e('Success'), $data);
     }
 
     public function actionView($lang, $id)

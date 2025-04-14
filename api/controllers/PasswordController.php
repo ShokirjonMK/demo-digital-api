@@ -26,7 +26,6 @@ class PasswordController extends ApiActiveController
     {
         $data = new Password();
         $data = $data->decryptThisUser();
-//        return $data;
         return $this->response(1, _e('Success'), $data);
     }
 
@@ -44,11 +43,6 @@ class PasswordController extends ApiActiveController
         } else {
             $data = $data->decryptThisUser(current_user_id());
         }
-
-        if ($passwordNew != $passwordRe || $passwordNew == $passwordOld) {
-            return $this->response(0, _e('Error sending password.'), null, null, ResponseStatus::UPROCESSABLE_ENTITY);
-        }
-
         if (($data['password'] == $passwordOld) || isRole('admin')) {
 
             if (strlen($passwordNew) >= 6) {
@@ -67,9 +61,9 @@ class PasswordController extends ApiActiveController
                     // $model->savePassword($passwordNew, current_user_id());
                     //**** */
                     $model->password_hash = \Yii::$app->security->generatePasswordHash($passwordNew);
-                    $model->change_password_type = 1;
 
-                    if ($model->save(false)) {
+
+                    if ($model->save()) {
                         return $this->response(1, _e('Password successfully changed!'), null, null, ResponseStatus::OK);
                     } else {
                         return $this->response(0, _e('There is an error occurred while changing password!'), null, null, ResponseStatus::UPROCESSABLE_ENTITY);
@@ -87,44 +81,59 @@ class PasswordController extends ApiActiveController
         return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::UPROCESSABLE_ENTITY);
     }
 
+    // public function actionViews($lang, $id)
+    // {
+    //     $get_user_id = $id;
+
+    //     if (current_user_id() != $get_user_id) {
+    //         $isChild =
+    //             AuthChild::find()
+    //             ->where(['in', 'child', user_roles_array($get_user_id)])
+    //             ->andWhere(['in', 'parent', current_user_roles_array()])
+    //             ->all();
+
+    //         if (!$isChild) return $this->response(0, _e('You can not get .'), null, null, ResponseStatus::NOT_FOUND);
+    //     }
+
+    //     if (!isRole('student', $get_user_id)) return $this->response(0, _e('You can not get.'), null, null, ResponseStatus::NOT_FOUND);
+
+    //     $data = new Password();
+    //     $data = $data->decryptThisUser($get_user_id);
+
+    //     return $this->response(1, _e('Success.'), $data, null, ResponseStatus::OK);
+    //     return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
+    // }
+
+
+    // Action to view user details
     public function actionView($lang, $id)
     {
-        $user_id = $id;
-        if (current_user_id() != $user_id) {
+        $get_user_id = $id;
+
+        // Check if the current user is different from the target user
+        if (current_user_id() != $get_user_id) {
+            // Query the AuthChild table to find records where the target user's role is a child role of the current user's role
 
 
-            if (!(isRole('admin') || isRole('edu_admin') || isRole('hr'))) {
-                return $this->response(0, _e('You can not get.'), null, null, ResponseStatus::NOT_FOUND);
+            // If no records are found, the current user does not have the necessary roles to access the information
+            if (!(AuthChild::find()
+                ->where(['child' => user_roles_array($get_user_id)])
+                ->andWhere(['parent' => current_user_roles_array()])
+                ->exists())) {
+                return $this->response(0, _e('You cannot access this informatio!.'), null, null, ResponseStatus::NOT_FOUND);
             }
-
-            $user = User::findOne(current_user_id());
-            $viewTeacher = User::findOne($user_id);
-
-            if ($user->attach_role == 'mudir') {
-                if ($viewTeacher->attach_role == 'teacher') {
-                    return $this->response(0, _e('You can not get.'), null, null, ResponseStatus::NOT_FOUND);
-                }
-            }
-
-            $isChild =
-                AuthChild::find()
-                    ->where(['parent' => $user->attach_role])
-                    ->andWhere(['in', 'child', current_user_roles_array($user_id)])
-                    ->all();
-
-            $isChildTwo =
-                AuthChild::find()
-                    ->where(['child' => $user->attach_role])
-                    ->andWhere(['in' , 'parent' , current_user_roles_array($user_id)])
-                    ->all();
-
-            if ((count($isChild) == 0 || count($isChildTwo) > 0) && !isRole('admin')) return $this->response(0, _e('You can not get.'), null, null, ResponseStatus::NOT_FOUND);
-            
         }
-        $data = new Password();
-        $data = $data->decryptThisUser($user_id);
 
+        // Check if the user has the 'student' role
+        // if (!isRole("admin"))
+        //     if (!in_array('student', user_roles_array($get_user_id))) {
+        //         return $this->response(0, _e('You cannot access this information.'), null, null, ResponseStatus::NOT_FOUND);
+        //     }
+
+        // Decrypt and return user data
+        $data = (new Password())->decryptThisUser($get_user_id);
+
+        // Return success response
         return $this->response(1, _e('Success.'), $data, null, ResponseStatus::OK);
-        return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
     }
 }

@@ -1,0 +1,57 @@
+# Query: Yii::$app->user->identity->id
+# Flags: CaseSensitive WordMatch
+# ContextLines: 1
+
+11 results - 8 files
+
+api\controllers\ApiActionTrait.php:
+   99              /* $action_logos = new Action();
+  100:             $action_logos->user_id = current_user_id()();
+  101              $action_logos->controller = Yii::$app->controller->id;
+
+api\controllers\EduSemestrController.php:
+  27  
+  28:         $student = Student::findOne(['user_id' => current_user_id()]);
+  29  
+
+api\controllers\EduSemestrSubjectController.php:
+  24  
+  25:         $student = Student::findOne(['user_id' => current_user_id()]);
+  26          if (isset($student)) {
+
+api\controllers\ExamController.php:
+  61          $model = new Exam();
+  62:         $student = Student::findOne(['user_id' => current_user_id()]);
+  63          // return $student;
+
+api\controllers\StudentTimeTableController.php:
+  27  
+  28:         $student = Student::findOne(['user_id' => current_user_id()]);
+  29          if (isset($student)) {
+
+api\controllers\UserController.php:
+  28          $errors = [];
+  29:         $user = User::findOne(current_user_id());
+  30          if (isset($user)) {
+
+  58      {
+  59:         $user = User::findOne(current_user_id());
+  60          if (isset($user)) {
+
+common\models\model\ExamStudentAnswer.php:
+  215          $password = isset($post["password"]) ? $post["password"] : "";
+  216:         $student = Student::findOne(['user_id' => current_user_id()]);
+  217          $exam_times = [];
+
+  365  
+  366:         $student = Student::findOne(['user_id' => current_user_id()]);
+  367          // $student_id = $student->id;
+
+common\models\model\StudentTimeTable.php:
+  231  
+  232:         $student = Student::findOne(['user_id' => current_user_id()]);
+  233          if (!isset($student)) {
+
+  296  
+  297:         $student = Student::findOne(['user_id' => current_user_id()]);
+  298          if (!isset($student)) {

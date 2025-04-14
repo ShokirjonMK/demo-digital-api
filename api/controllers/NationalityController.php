@@ -28,8 +28,7 @@ class NationalityController extends ActiveController
 
         $query = $model->find()
             ->with(['infoRelation'])
-            ->andWhere([$this->table_name . '.is_deleted' => 0])
-            ->leftJoin("translate tr", "tr.model_id = $this->table_name.id and tr.table_name = '$this->table_name'")
+            ->andWhere([$this->table_name . '.is_deleted' => 0])->leftJoin("translate tr", "tr.model_id = $this->table_name.id and tr.table_name = '$this->table_name'")
             // ->groupBy($this->table_name . '.id')
             ->andFilterWhere(['like', 'tr.name', Yii::$app->request->get('query')]);
 
@@ -39,7 +38,6 @@ class NationalityController extends ActiveController
         // sort
         $query = $this->sort($query);
 
-//        $date = ApiActionTrait::getData($query);
         // data
         $data =  $this->getData($query);
         return $this->response(1, _e('Success'), $data);

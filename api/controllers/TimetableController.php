@@ -2,177 +2,343 @@
 
 namespace api\controllers;
 
-use api\resources\User;
-use common\models\AuthAssignment;
-use common\models\model\AuthChild;
-use common\models\model\Department;
-use common\models\model\EduPlan;
-use common\models\model\Faculty;
-use common\models\model\Group;
-use common\models\model\Profile;
-use common\models\model\SubjectTopic;
-use common\models\model\TeacherAccess;
-use common\models\model\Timetable;
-use common\models\model\TimeTable1;
-use common\models\model\TimetableDate;
-use common\models\model\TimeTableGroup;
-use common\models\model\TimetableIds;
-use common\models\model\UserAccess;
+use common\models\model\TimeTable;
 use Yii;
 use base\ResponseStatus;
 use common\models\model\EduSemestr;
+use common\models\model\EduYear;
+use common\models\model\Faculty;
 use common\models\model\Kafedra;
 use common\models\model\Student;
+use common\models\model\StudentTimeTable;
 use common\models\model\Subject;
-use yii\db\Expression;
+use Exception;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use yii\web\UploadedFile;
 
-class TimetableController extends ApiActiveController
+class TimeTableController extends ApiActiveController
 {
-    public $modelClass = 'common\models\model\Timetable';
-
-    public $table_name = 'timetable';
-
-    public $controller_name = 'Timetable';
+    public $modelClass = 'api\resources\TimeTable';
 
     public function actions()
     {
         return [];
     }
 
+
+
+    public function actionImport($lang)
+    {
+        // $data = [];
+
+        $post = Yii::$app->request->post();
+        // if ($post['type'] == 1) {
+        $result = TimeTable::import($post);
+        // }
+        if (!is_array($result)) {
+            return $this->response(1, _e('TimeTable successfully imported.'), null, null, ResponseStatus::CREATED);
+        } else {
+            return $this->response(0, _e('There is an error occurred while importing.'), null, $result, ResponseStatus::UPROCESSABLE_ENTITY);
+        }
+
+
+        // $transaction = Yii::$app->db->beginTransaction();
+        // $errors = [];
+        // // $file = UploadedFile::getInstancesByName('excel');
+        // $excel = UploadedFile::getInstancesByName('excel');
+        // if (!$excel) {
+        //     $errors[] = _e('Excel file required');
+        //     $transaction->rollBack();
+        //     return simplify_errors($errors);
+        // }
+
+        // if ($excel) {
+        //     $excel = $excel[0];
+        //     $excelUrl = TimeTable::uploadExcel($excel);
+        //     if ($excelUrl) {
+
+        //         // dd($excelUrl);
+        //         return true;
+        //     } else {
+        //         $errors[] = _e('Excel file not uploaded');
+        //     }
+        // }
+
+        // dd("asas");
+        // try {
+        //     $inputFileType = IOFactory::identify($excel[0]->tempName);
+        //     $objReader = IOFactory::createReader($inputFileType);
+
+        //     $objectPhpExcel = $objReader->load($excel[0]->tempName);;
+
+        //     $sheetDatas = [];
+
+        //     $sheetDatas = $objectPhpExcel->getActiveSheet()->toArray(null, true, true, true);
+        //     dd($sheetDatas);
+        //     // if ($this->setFirstRecordAsKeys) {
+        //     //     $sheetDatas = $this->executeArrayLabel($sheetDatas);
+        //     // }
+
+        //     // if (!empty($this->getOnlyRecordByIndex)) {
+        //     //     $sheetDatas = $this->executeGetOnlyRecords($sheetDatas, $this->getOnlyRecordByIndex);
+        //     // }
+        //     // if (!empty($this->leaveRecordByIndex)) {
+        //     //     $sheetDatas = $this->executeLeaveRecords($sheetDatas, $this->leaveRecordByIndex);
+        //     // }
+
+        //     dd($sheetDatas);
+        //     foreach ($sheetDatas as $dataOne) {
+
+        //         $timeTableNew = new TimeTable();
+        //         $timeTableNew->room_id = $dataOne[0];
+        //         $timeTableNew->para_id = $dataOne[1];
+        //         $timeTableNew->week_id = $dataOne[2];
+        //         $timeTableNew->edu_year_id = $dataOne[3];
+        //         $timeTableNew->edu_plan_id = $dataOne[4];
+        //         $timeTableNew->edu_semester_id = $dataOne[5];
+        //         $timeTableNew->subject_id = $dataOne[6];
+        //         $timeTableNew->language_id = $dataOne[7];
+        //         $timeTableNew->teacher_access_id = $dataOne[8];
+        //         $timeTableNew->time_option_id = $dataOne[9];
+
+        //         if (!$timeTableNew->save()) {
+        //             $errors[] = $timeTableNew->errors;
+        //         }
+        //     }
+        // } catch (Exception $e) {
+        //     $transaction->rollBack();
+        // }
+
+        // dd($errors);
+        // if (count($errors) > 0) {
+        //     $transaction->rollBack();
+        //     return simplify_errors($errors);
+        // } else {
+        //     $transaction->commit();
+        //     return [true];
+        // }
+
+
+        // return $sheetDatas;
+    }
+
+
     public function actionIndex($lang)
     {
-        $model = new Timetable();
+        $model = new TimeTable();
 
-        $query = $model->find()->where(['is_deleted' => 0]);
+        $archived = Yii::$app->request->get('archived');
+        $this_year = Yii::$app->request->get('this_year');
+        $student = Student::findOne(['user_id' => current_user_id()]);
 
-        $startDate = date('Y-m-d' , strtotime(Yii::$app->request->get('start_date') . ' -1 day'));
-        $endDate = date('Y-m-d' , strtotime(Yii::$app->request->get('end_date') . ' +1 day'));
+        $query = $model->find()
+            ->andWhere(['is_deleted' => 0]);
 
-        $startDate = ($startDate !== null) ? date('Y-m-d', strtotime("$startDate -1 day")) : null;
-        $endDate = ($endDate !== null) ? date('Y-m-d', strtotime("$endDate +1 day")) : null;
+        $subject_category_ids = Yii::$app->request->get('subject_category_ids', []);
+        if (is_array($subject_category_ids) && count($subject_category_ids) > 0) {
+            $query->andFilterWhere(['in', 'subject_category_id', $subject_category_ids]);
+        }
 
-        $subquery = TimetableDate::find()
-            ->select('timetable_id')
-            ->where(['between', 'date', new Expression('DATE(:start_date)'), new Expression('DATE(:end_date)')])
-            ->params([':start_date' => $startDate, ':end_date' => $endDate]);
 
-        $query->andWhere(['in' , 'id' , $subquery]);
+        if ($this_year) {
+            $query->andWhere(['in', 'edu_year_id', EduYear::find()->where(['status' => 1])->select('id')]);
+        } elseif ($archived) {
+            $query->andWhere(['archived' => 1]);
+        } else {
+            $query->andWhere(['archived' => 0]);
+        }
 
-        $query = $this->filter($query, $model);
+        // Apply role-based filters
+        if (isRole('student')) {
+            if ($student) {
+                $query->andWhere(['in', 'edu_semester_id', EduSemestr::find()
+                    ->where(['edu_plan_id' => $student->edu_plan_id])
+                    ->select('id')]);
+                $query->andWhere(['language_id' => $student->edu_lang_id]);
+            }
+        } else {
+            // Check if user has Kafedra access
+            $k = $this->isSelf(Kafedra::USER_ACCESS_TYPE_ID);
+            if ($k['status'] == 1) {
+                $query->andFilterWhere([
+                    'in',
+                    'subject_id',
+                    Subject::find()
+                        ->where(['kafedra_id' => $k['UserAccess']->table_id])
+                        ->select('id')
+                ]);
+            }
+        }
 
-        // filter
+        // Apply teacher filter
+        if (isRole('teacher') && !isRole('mudir') && !isRole('dean') && !isRole('edu_quality')&& !isRole('time_table')) {
+            $query->andFilterWhere(['teacher_user_id' => current_user_id()]);
+        }
+
+        // Apply mudirSelf filter
+        $mudirSelf = Yii::$app->request->get('self');
+        if (isset($mudirSelf) && $mudirSelf == 1) {
+            $query->andFilterWhere(['teacher_user_id' => current_user_id()]);
+        }
+
+        // Apply kafedraId filter
+        $kafedraId = Yii::$app->request->get('kafedra_id');
+        if (isset($kafedraId)) {
+            $query->andFilterWhere([
+                'in',
+                'subject_id',
+                Subject::find()
+                    ->where(['kafedra_id' => $kafedraId])
+                    ->select('id')
+            ]);
+        }
+
+        // Apply facultyId filter
+        $facultyId = Yii::$app->request->get('faculty_id');
+        if (isset($facultyId)) {
+            $query->andFilterWhere([
+                'in',
+                'subject_id',
+                Subject::find()
+                    ->where(['kafedra_id' => Kafedra::find()->where(['faculty_id' => $facultyId])->select('id')])
+                    ->select('id')
+            ]);
+        }
+
+        // Apply subject_category_ids filter
+        $subjectCategoryIds = json_decode(str_replace("'", "", Yii::$app->request->get('subject_category_ids')));
+        if ($subjectCategoryIds) {
+            $query->andFilterWhere([
+                'in',
+                'subject_category_id',
+                $subjectCategoryIds
+            ]);
+        }
+
+        // faculty_id
+        if (isRole("dean")) {
+            $t = $this->isSelf(Faculty::USER_ACCESS_TYPE_ID);
+            if ($t['status'] == 1) {
+                $query = $query->andWhere([
+                    $model->tableName() . '.faculty_id' => $t['UserAccess']->table_id
+                ]);
+            } elseif ($t['status'] == 2) {
+                $query->andFilterWhere([
+                    $model->tableName() . '.faculty_id' => -1
+                ]);
+            }
+        }
+
+
+        // Apply additional filtering, sorting, and data retrieval logic
         $query = $this->filterAll($query, $model);
-
-        // sort
         $query = $this->sort($query);
+        // dd($query->createCommand()->getRawSql());
 
-        // data
+        // Retrieve and return the data
         $data =  $this->getData($query);
 
         return $this->response(1, _e('Success'), $data);
     }
 
-
-    public function actionUser($lang)
+    public function actionParentNull($lang)
     {
-        $model = new User();
+        $model = new TimeTable();
+        $archived = Yii::$app->request->get('archived');
+        $this_year = Yii::$app->request->get('this_year');
 
         $query = $model->find()
-            ->with(['profile'])
-            ->join('LEFT JOIN', 'profile', 'profile.user_id = users.id')
-            ->join('LEFT JOIN', 'auth_assignment', 'auth_assignment.user_id = users.id')
-            ->andWhere(['users.deleted' => 0])
-            ->groupBy('profile.user_id')
-            ->andFilterWhere(['like', 'username', Yii::$app->request->get('query')]);
+            ->andWhere(['is_deleted' => 0])
+            ->andWhere(['parent_id' => null])
+            ->andFilterWhere(['like', 'name', Yii::$app->request->get('query')]);
 
-        $eduYearId = Yii::$app->request->get('edu_year_id');
-        $date = Yii::$app->request->get('date');
-        $type = Yii::$app->request->get('type');
-
-        $subModel = new TimetableDate();
-        $subQuery = $subModel->find()
-            ->select('user_id')
-            ->where([
-                'edu_year_id'  => $eduYearId,
-                'status' => 1,
-                'is_deleted' => 0
-            ]);
-
-        if (isset($type) && $type == 1) {
-            $subQuery->andWhere(['<' , 'date' , $date]);
-        } elseif (isset($type) && $type == 2) {
-            $subQuery->andWhere(['=' , 'date' , $date]);
+        $subject_category_ids = Yii::$app->request->get('subject_category_ids', []);
+        if (is_array($subject_category_ids) && count($subject_category_ids) > 0) {
+            $query->andFilterWhere(['in', 'subject_category_id', $subject_category_ids]);
         }
 
-        $query->andWhere(['in' , 'users.id' , TimetableDate::find()
-            ->select('user_id')
-            ->where([
-                'edu_year_id'  => Yii::$app->request->get('edu_year_id'),
-                'status' => 1,
-                'is_deleted' => 0
-            ])
-        ]);
+
+        $student = Student::findOne(['user_id' => current_user_id()]);
+        if ($this_year) {
+            $query->andWhere(['in', 'edu_year_id', EduYear::find()->where(['status' => 1])->select('id')]);
+        } elseif ($archived) {
+            $query->andWhere(['archived' => 1]);
+        } else {
+            $query->andWhere(['archived' => 0]);
+        }
+        if ($student && isRole('student')) {
+
+            // /** Kurs bo'yicha vaqt belgilash */
+            // $errors = [];
+            // if (!StudentTimeTable::chekTime()) {
+            //     $errors[] = _e('This is not your time to choose!');
+            //     return $this->response(0, _e('There is an error occurred while processing.'), null, $errors, ResponseStatus::UPROCESSABLE_ENTITY);
+            // }
+            // /** Kurs bo'yicha vaqt belgilash */
+
+            $query->andWhere(['in', 'edu_semester_id', EduSemestr::find()->where(['edu_plan_id' => $student->edu_plan_id])->select('id')]);
+            $query->andWhere(['language_id' => $student->edu_lang_id]);
+        } else {
+
+            $k = $this->isSelf(Kafedra::USER_ACCESS_TYPE_ID);
+            if ($k['status'] == 1) {
+
+                $query->andFilterWhere([
+                    'in',
+                    'subject_id',
+                    Subject::find()->where([
+                        'kafedra_id' => $k['UserAccess']->table_id
+                    ])->select('id')
+                ]);
+            }
+        }
+
+        // if (isRole('teacher') && !isRole('mudir')) {
+        //     $query->andFilterWhere([
+        //         'teacher_user_id' => current_user_id()
+        //     ]);
+        // }
+
+        // Apply teacher filter
+        if (isRole('teacher') && !isRole('mudir') && !isRole('dean')) {
+            $query->andFilterWhere(['teacher_user_id' => current_user_id()]);
+        }
 
         $kafedraId = Yii::$app->request->get('kafedra_id');
         if (isset($kafedraId)) {
             $query->andFilterWhere([
-                'in', 'users.id', UserAccess::find()->select('user_id')->where([
-                    'table_id' => $kafedraId,
-                    'user_access_type_id' => Kafedra::USER_ACCESS_TYPE_ID,
-                    'status' => 1,
-                    'is_deleted' => 0,
-                ])
+                'in',
+                'subject_id',
+                Subject::find()->where([
+                    'kafedra_id' => $kafedraId
+                ])->select('id')
             ]);
         }
 
-        $facultyId = Yii::$app->request->get('faculty_id');
-        if (isset($facultyId)) {
+        // Apply subject_category_ids filter
+        $subjectCategoryIds = json_decode(str_replace("'", "", Yii::$app->request->get('subject_category_ids')));
+        if ($subjectCategoryIds) {
             $query->andFilterWhere([
-                'in', 'users.id', UserAccess::find()->select('user_id')->where([
-                    'table_id' => $facultyId,
-                    'user_access_type_id' => Faculty::USER_ACCESS_TYPE_ID,
-                    'status' => 1,
-                    'is_deleted' => 0,
-                ])
+                'in',
+                'subject_category_id',
+                $subjectCategoryIds
             ]);
         }
 
-        $filter = Yii::$app->request->get('filter');
-        $filter = json_decode(str_replace("'", "", $filter));
-        //  Filter from Profile
-        $profile = new Profile();
-        if (isset($filter)) {
-            foreach ($filter as $attribute => $value) {
-                $attributeMinus = explode('-', $attribute);
-                if (isset($attributeMinus[1])) {
-                    if ($attributeMinus[1] == 'role_name') {
-                        if (is_array($value)) {
-                            $query = $query->andWhere(['not in', 'auth_assignment.item_name', $value]);
-                        }
-                    }
-                }
-                if ($attribute == 'role_name') {
-                    if (is_array($value)) {
-                        $query = $query->andWhere(['in', 'auth_assignment.item_name', $value]);
-                    } else {
-                        $query = $query->andFilterWhere(['like', 'auth_assignment.item_name', '%' . $value . '%', false]);
-                    }
-                }
-                if (in_array($attribute, $profile->attributes())) {
-                    $query = $query->andFilterWhere(['profile.' . $attribute => $value]);
-                }
+        // faculty_id
+        if (isRole("dean")) {
+            $t = $this->isSelf(Faculty::USER_ACCESS_TYPE_ID);
+            if ($t['status'] == 1) {
+                $query = $query->andWhere([
+                    $model->tableName() . '.faculty_id' => $t['UserAccess']->table_id
+                ]);
+            } elseif ($t['status'] == 2) {
+                $query->andFilterWhere([
+                    $model->tableName() . '.faculty_id' => -1
+                ]);
             }
         }
 
-        $queryfilter = Yii::$app->request->get('filter-like');
-        $queryfilter = json_decode(str_replace("'", "", $queryfilter));
-        if (isset($queryfilter)) {
-            foreach ($queryfilter as $attributeq => $word) {
-                if (in_array($attributeq, $profile->attributes())) {
-                    $query = $query->andFilterWhere(['like', 'profile.' . $attributeq, '%' . $word . '%', false]);
-                }
-            }
-        }
 
         // filter
         $query = $this->filterAll($query, $model);
@@ -180,315 +346,140 @@ class TimetableController extends ApiActiveController
         // sort
         $query = $this->sort($query);
 
+        // dd($query->createCommand()->getRawSql());
+
         // data
-        $data = $this->getData($query);
-        // $data = $query->all();
+        $data =  $this->getData($query, 5);
 
         return $this->response(1, _e('Success'), $data);
     }
 
-
     public function actionCreate($lang)
     {
+        /* $errors = [];
+        if (StudentTimeTable::TIME_10 < time()) {
+            $errors[] = _e('Students started choosing!');
+            return $this->response(0, _e('There is an error occurred while processing.'), null, $errors, ResponseStatus::UPROCESSABLE_ENTITY);
+        } */
+        $model = new TimeTable();
         $post = Yii::$app->request->post();
-
-        $resultIds = TimetableIds::createItem();
-        if (!$resultIds['is_ok']) {
-            return $this->response(0, _e('There is an error occurred while processing.'), null, $resultIds['errors'], ResponseStatus::UPROCESSABLE_ENTITY);
-        }
-
-        $ids = $resultIds['ids'];
-        $result = Timetable::createItem($post , $ids);
-
+        $this->load($model, $post);
+        $result = TimeTable::createItem($model, $post);
         if (!is_array($result)) {
-            return $this->response(1, _e($this->controller_name . ' successfully created.'), null, null, ResponseStatus::CREATED);
+            return $this->response(1, _e('TimeTable successfully created.'), $model, null, ResponseStatus::CREATED);
         } else {
             return $this->response(0, _e('There is an error occurred while processing.'), null, $result, ResponseStatus::UPROCESSABLE_ENTITY);
         }
     }
 
-
-    public function actionAddGroup($lang)
+    public function actionAddTeacher($lang, $id)
     {
-        $post = Yii::$app->request->post();
-        $result = Timetable::addGroup($post);
-        if (!is_array($result)) {
-            return $this->response(1, _e($this->controller_name . ' successfully created.'), null, null, ResponseStatus::CREATED);
-        } else {
-            return $this->response(0, _e('There is an error occurred while processing.'), null, $result, ResponseStatus::UPROCESSABLE_ENTITY);
-        }
-    }
-
-    public function actionAddDay($lang, $id)
-    {
-        $post = Yii::$app->request->post();
-        $models = Timetable::find()
-            ->where(['ids' => $id,'status' => 1, 'is_deleted' => 0])
-            ->all();
-
-        if (count($models) == 0) {
+        $model = TimeTable::findOne($id);
+        if (!$model) {
             return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
         }
+        $post = Yii::$app->request->post();
 
-        $result = Timetable::addDay($models , $post);
+        $result = TimeTable::addTeacher($model, $post);
+
         if (!is_array($result)) {
-            return $this->response(1, _e($this->controller_name . ' successfully created.'), null, null, ResponseStatus::CREATED);
+            return $this->response(1, _e('TimeTable successfully updated.'), $model, null, ResponseStatus::OK);
         } else {
             return $this->response(0, _e('There is an error occurred while processing.'), null, $result, ResponseStatus::UPROCESSABLE_ENTITY);
         }
     }
+
+    public function actionDeleteTeacher($lang, $id)
+    {
+        $model = TimeTable::findOne($id);
+        if (!$model) {
+            return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
+        }
+        $post = Yii::$app->request->post();
+
+        $result = TimeTable::deleteTeacher($model, $post);
+
+        if (!is_array($result)) {
+            return $this->response(1, _e('TimeTable successfully updated.'), $model, null, ResponseStatus::OK);
+        } else {
+            return $this->response(0, _e('There is an error occurred while processing.'), null, $result, ResponseStatus::UPROCESSABLE_ENTITY);
+        }
+    }
+
+    public function actionUpdateTeacher($lang, $id)
+    {
+        $model = TimeTable::findOne($id);
+        if (!$model) {
+            return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
+        }
+        $post = Yii::$app->request->post();
+
+        $result = TimeTable::updateTeacher($model, $post);
+
+        if (!is_array($result)) {
+            return $this->response(1, _e('TimeTable successfully updated.'), $model, null, ResponseStatus::OK);
+        } else {
+            return $this->response(0, _e('There is an error occurred while processing.'), null, $result, ResponseStatus::UPROCESSABLE_ENTITY);
+        }
+    }
+
 
     public function actionUpdate($lang, $id)
     {
+        /* $errors = [];
+        if (StudentTimeTable::TIME_10 < time()) {
+            $errors[] = _e('Students started choosing!');
+            return $this->response(0, _e('There is an error occurred while processing.'), null, $errors, ResponseStatus::UPROCESSABLE_ENTITY);
+        } */
+
+        $model = TimeTable::findOne($id);
+        if (!$model) {
+            return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
+        }
         $post = Yii::$app->request->post();
+        $this->load($model, $post);
 
-        $result = Timetable::updateItem($id, $post);
+        $result = TimeTable::updateItem($model, $post);
+
         if (!is_array($result)) {
-            return $this->response(1, _e('TimeTable successfully updated.'), null, null, ResponseStatus::OK);
+            return $this->response(1, _e('TimeTable successfully updated.'), $model, null, ResponseStatus::OK);
         } else {
             return $this->response(0, _e('There is an error occurred while processing.'), null, $result, ResponseStatus::UPROCESSABLE_ENTITY);
         }
     }
 
-
-    public function actionView($lang, $id) {
-
-        $model = new Timetable();
-        $query = $model->findOne([
-            'id' => $id,
-            'status' => 1,
-            'is_deleted' => 0,
-        ]);
-
-        if (!isset($query)) {
-            return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
-        }
-
-        return $this->response(1, _e('Success.'), $query, null, ResponseStatus::OK);
-
-    }
-
-    public function actionDelete($lang, $id)
+    public function actionView($lang, $id)
     {
-        $models = Timetable::find()
-            ->where([
-                'ids' => $id,
-                'is_deleted' => 0
-            ])->all();
-        if (count($models) == 0) {
-            return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
-        }
-
-        $result = Timetable::deleteItem($models);
-
-        if (!is_array($result)) {
-            return $this->response(1, _e('TimeTable successfully removed.'), null, null, ResponseStatus::OK);
-        } else {
-            return $this->response(0, _e('There is an error occurred while processing.'), null, $result, ResponseStatus::UPROCESSABLE_ENTITY);
-        }
-    }
-
-    public function actionDeleteOne($lang, $id)
-    {
-        $model = Timetable::findOne([
-            'id' => $id,
-            'status' => 1,
-            'is_deleted' => 0
-        ]);
+        $model = TimeTable::find()
+            ->andWhere(['id' => $id])
+            ->one();
         if (!$model) {
             return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
         }
 
-        $result = Timetable::deleteItemOne($model);
-
-        if (!is_array($result)) {
-            return $this->response(1, _e('TimeTable successfully removed.'), null, null, ResponseStatus::OK);
-        } else {
-            return $this->response(0, _e('There is an error occurred while processing.'), null, $result, ResponseStatus::UPROCESSABLE_ENTITY);
+        if (isRole('teacher') && !isRole('mudir') && !isRole('dean') && $model->teacher_user_id !== current_user_id()) {
+            return $this->response(0, _e('You do not have access.'), null, null, ResponseStatus::FORBIDDEN);
         }
+
+        return $this->response(1, _e('Success.'), $model, null, ResponseStatus::OK);
     }
 
-    public function actionEduPlan()
+    public function actionDelete($lang, $id)
     {
-        $model = new EduPlan();
-
-        $query = $model->find()->where(['status' => 1 , 'is_deleted' => 0])->orderBy('edu_year_id desc');
-
-        if (isRole('teacher')) {
-            $userId = current_user_id();
-        } else {
-            $userId = Yii::$app->request->get('user_id');
+        $model = TimeTable::findOne($id);
+        if (!$model) {
+            return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
         }
 
-        $query->andWhere(['in', 'id',
-            TimetableDate::find()
-                ->select('edu_plan_id')
-                ->where([
-                    'user_id' => $userId,
-                    'status' => 1,
-                    'is_deleted' => 0
-                ])
-        ]);
+        // remove model
+        $result = TimeTable::findOne($id);
 
-        $query = $this->filter($query, $model);
+        if ($result) {
+            TimeTable::deleteAll(['parent_id' => $result->id]);
+            $result->delete();
 
-        // filter
-        $query = $this->filterAll($query, $model);
-
-        // sort
-        $query = $this->sort($query);
-
-        // data
-        $data =  $this->getData($query);
-
-        return $this->response(1, _e('Success'), $data);
-    }
-
-    public function actionEduSemestr($lang, $id)
-    {
-        $model = new EduSemestr();
-
-        $query = $model->find()->where(['status' => 1 , 'is_deleted' => 0])->orderBy('semestr_id asc');
-
-        if (isRole('teacher')) {
-            $userId = current_user_id();
-        } else {
-            $userId = Yii::$app->request->get('user_id');
+            return $this->response(1, _e('TimeTable and its children succesfully removed.'), null, null, ResponseStatus::OK);
         }
-
-        $query->andWhere(['in', 'id',
-            TimetableDate::find()
-                ->select('edu_semestr_id')
-                ->where([
-                    'user_id' => $userId,
-                    'edu_plan_id' => $id,
-                    'status' => 1,
-                    'is_deleted' => 0
-                ])
-        ]);
-
-        $query = $this->filter($query, $model);
-
-        // filter
-        $query = $this->filterAll($query, $model);
-
-        // sort
-        $query = $this->sort($query);
-
-        // data
-        $data =  $this->getData($query);
-
-        return $this->response(1, _e('Success'), $data);
+        return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::BAD_REQUEST);
     }
-
-    public function actionAttend($lang)
-    {
-        $model = new Timetable();
-
-        $query = $model->find()
-            ->where(['is_deleted' => 0]);
-
-        $startDate = date('Y-m-d' , strtotime(Yii::$app->request->get('start_date') . ' -1 day'));
-        $endDate = date('Y-m-d' , strtotime(Yii::$app->request->get('end_date') . ' +1 day'));
-
-        $startDate = ($startDate !== null) ? date('Y-m-d', strtotime("$startDate -1 day")) : null;
-        $endDate = ($endDate !== null) ? date('Y-m-d', strtotime("$endDate +1 day")) : null;
-
-        $subquery = TimetableDate::find()
-            ->select('timetable_id')
-            ->where(['between', 'date', new Expression('DATE(:start_date)'), new Expression('DATE(:end_date)')])
-            ->params([':start_date' => $startDate, ':end_date' => $endDate]);
-
-        $query->andWhere(['in' , 'id' , $subquery]);
-
-        $query = $this->filter($query, $model);
-
-        // filter
-        $query = $this->filterAll($query, $model);
-
-        // sort
-        $query = $this->sort($query);
-
-        // data
-        $data =  $this->getData($query);
-
-        return $this->response(1, _e('Success'), $data);
-    }
-
-    public function actionStudentType($lang)
-    {
-        $post = Yii::$app->request->post();
-        $result = Timetable::studentType($post);
-        if (!is_array($result)) {
-            return $this->response(1, _e($this->controller_name . ' successfully created.'), null, null, ResponseStatus::CREATED);
-        } else {
-            return $this->response(0, _e('There is an error occurred while processing.'), null, $result, ResponseStatus::UPROCESSABLE_ENTITY);
-        }
-    }
-
-
-    public function actionTeacherTopic()
-    {
-        $model = new TimetableDate();
-        $userId = isRole('teacher') ? current_user_id() : Yii::$app->request->get('user_id');
-
-        $subjectId = Yii::$app->request->get('subject_id');
-        $subjectCategoryId = Yii::$app->request->get('subject_category_id');
-        $groupId = Yii::$app->request->get('group_id');
-
-        $data = $model->find()
-            ->where(['is_deleted' => 0, 'status' => 1])
-            ->andFilterWhere(['user_id' => $userId])
-            ->andFilterWhere(['group_id' => $groupId])
-            ->andFilterWhere(['subject_id' => $subjectId])
-            ->andFilterWhere(['subject_category_id' => $subjectCategoryId])
-            ->orderBy(['date' => SORT_ASC, 'para_id' => SORT_ASC])
-            ->asArray()
-            ->all();
-
-        $data = array_map(function ($item) {
-            return [
-                'date' => $item['date'],
-                'para' => $item['para_id'],
-                'subject' => $item['subject_id']
-            ];
-        }, $data);
-
-        $topics = SubjectTopic::find()
-            ->where([
-                'subject_id' => $subjectId,
-                'subject_category_id' => $subjectCategoryId,
-                'status' => 1,
-                'is_deleted' => 0
-            ])
-            ->orderBy(['order' => SORT_ASC])
-            ->asArray()
-            ->all();
-
-        $t = [];
-        foreach ($topics as $topic) {
-            $hour = $topic['hours'];
-            while ($hour >= 2) {
-                $t[] = ['id' => $topic['id'], 'hour' => 2];
-                $hour -= 2;
-            }
-        }
-
-        $merged = [];
-        $maxLength = max(count($data), count($t));
-
-        for ($i = 0; $i < $maxLength; $i++) {
-            $merged[] = [
-                'date' => $data[$i]['date'] ?? null,
-                'para' => $data[$i]['para'] ?? null,
-                'subject' => $data[$i]['subject'] ?? null,
-                'topic_id' => $t[$i]['id'] ?? null,
-                'hours' => $t[$i]['hour'] ?? null
-            ];
-        }
-
-
-        dd($merged);
-    }
-
 }

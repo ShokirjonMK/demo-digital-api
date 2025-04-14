@@ -20,8 +20,7 @@ class LanguagesController extends ApiActiveController
         $model = new Languages();
 
         $query = $model->find()
-            ->andWhere(['status' => 1]);
-//            ->andWhere(['is_deleted' => 0]);
+            ->andWhere(['is_deleted' => 0]);
         //    ->andFilterWhere(['like', 'name', Yii::$app->request->get('query')]);
 
         $all = Yii::$app->request->get('all');
@@ -43,7 +42,7 @@ class LanguagesController extends ApiActiveController
 
     public function actionCreate($lang)
     {
-        return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::UPROCESSABLE_ENTITY);
+
         $model = new Languages();
         $post = Yii::$app->request->post();
         $this->load($model, $post);
@@ -57,7 +56,6 @@ class LanguagesController extends ApiActiveController
 
     public function actionUpdate($lang, $id)
     {
-        return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::UPROCESSABLE_ENTITY);
         $model = Languages::findOne($id);
         if (!$model) {
             return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
@@ -85,7 +83,6 @@ class LanguagesController extends ApiActiveController
 
     public function actionDelete($lang, $id)
     {
-        return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::UPROCESSABLE_ENTITY);
         $model = Languages::findOne($id);
         if (!$model) {
             return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);

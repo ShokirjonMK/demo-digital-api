@@ -6,16 +6,10 @@ protected/data/*.db
 themes/classic/views/
 vendor/
 config.inc.php
-# config.boot.php
 composer.lock
 .idea/
 api/web/index.php
 storage/uploads
 composer.lock
 storage
-logs
-month-logs
-
-/docker/mysql/db
-/docker/nginx/logs
-/docker/php/bash_history
+api/config/params.php

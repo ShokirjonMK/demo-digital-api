@@ -25,11 +25,8 @@
         "symfony/finder": "^5.1",
         "phpoffice/phpspreadsheet": "^1.21",
         "yiisoft/yii2-httpclient": "*",
-        "guzzlehttp/guzzle": "^7.0",
-        "codemix/yii2-excelexport": "^2.8",
-        "phpoffice/phpword": "^1.1",
-        "2amigos/qrcode-library": "^3.0",
-        "aki/yii2-bot-telegram": "^3.1"
+        "guzzlehttp/guzzle": "^7.5",
+        "aki/yii2-bot-telegram": "*"
     },
     "require-dev": {
         "yiisoft/yii2-debug": "~2.1.0",

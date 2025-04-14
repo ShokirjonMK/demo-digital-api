@@ -56,7 +56,10 @@ class User extends ActiveRecord implements IdentityInterface
             ['layout', 'default', 'value' => ''],
             ['view', 'default', 'value' => ''],
             [['roleName', 'access_token_time'], 'safe'],
-            [['status', 'deleted', 'created_by', 'updated_by',], 'integer'],
+            [['attendence', 'status', 'deleted', 'created_by', 'updated_by'], 'integer'],
+            [['telegram_chat_id'], 'integer'],
+            [['lang'], 'string'],
+
         ];
     }
 
@@ -67,6 +70,7 @@ class User extends ActiveRecord implements IdentityInterface
             'username' => _e('Username'),
             'auth_key' => _e('Auth key'),
             'password' => _e('Password'),
+            'telegram_chat_id' => _e('telegram_chat_id'),
             'password_repeat' => _e('Confirm password'),
             'password_reset_token' => _e('Password reset token'),
             'email' => _e('Email address'),
@@ -155,6 +159,28 @@ class User extends ActiveRecord implements IdentityInterface
             ['<=', '(UNIX_TIMESTAMP() - access_token_time) ', $apiExpirationTimeInSeconds]
         ])->one();
     }
+    public static function findIdentityByAccessTokenMysql($token, $type = null)
+    {
+        // user expiration time
+        $apiExpirationTimeInSeconds = 60 * 60 * 24 * API_EXPIRATION_DAYS;
+        return static::find()->where([
+            'AND',
+            ['access_token' => $token],
+            ['<=', '(UNIX_TIMESTAMP() - access_token_time) ', $apiExpirationTimeInSeconds]
+        ])->one();
+    }
+
+    public static function findIdentityByAccessTokenPosgrsql($token, $type = null)
+    {
+        // user expiration time
+        $apiExpirationTimeInSeconds = 60 * 60 * 24 * API_EXPIRATION_DAYS;
+
+        return static::find()->where([
+            'AND',
+            ['access_token' => $token],
+            ['<=', '(EXTRACT(epoch FROM NOW()) - access_token_time) ', $apiExpirationTimeInSeconds]
+        ])->one();
+    }
 
     public function getExpireTime()
     {
@@ -181,6 +207,24 @@ class User extends ActiveRecord implements IdentityInterface
     public static function findByUsername($username)
     {
         return static::findOne(['username' => $username]);
+    }
+
+    /**
+     * Authenticates a user using username and password.
+     *
+     * @param string $username
+     * @param string $password
+     * @return static|null The authenticated user, or null if authentication fails.
+     */
+    public static function authenticate($username, $password)
+    {
+        $user = static::findOne(['username' => $username]);
+
+        if ($user && Yii::$app->security->validatePassword($password, $user->password_hash)) {
+            return $user;
+        }
+
+        return null;
     }
 
     /**

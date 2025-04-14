@@ -42,27 +42,24 @@ trait ApiOpen
 
     public function filterAll($query, $model)
     {
+
         $filter = Yii::$app->request->get('filter');
         $queryfilter = Yii::$app->request->get('filter-like');
 
+        $filter = json_decode(str_replace("'", "", $filter));
         if (isset($filter)) {
-            $filter = json_decode(str_replace("'", "", $filter));
-            if (isset($filter)) {
-                foreach ($filter as $attribute => $id) {
-                    if (in_array($attribute, $model->attributes())) {
-                        $query = $query->andFilterWhere([$model->tableName() . '.' . $attribute => $id]);
-                    }
+            foreach ($filter as $attribute => $id) {
+                if (in_array($attribute, $model->attributes())) {
+                    $query = $query->andFilterWhere([$attribute => $id]);
                 }
             }
         }
 
+        $queryfilter = json_decode(str_replace("'", "", $queryfilter));
         if (isset($queryfilter)) {
-            $queryfilter = json_decode(str_replace("'", "", $queryfilter));
-            if (isset($queryfilter)) {
-                foreach ($queryfilter as $attributeq => $word) {
-                    if (in_array($attributeq, $model->attributes())) {
-                        $query = $query->andFilterWhere(['like', $model->tableName() . '.' . $attributeq, '%' . $word . '%', false]);
-                    }
+            foreach ($queryfilter as $attributeq => $word) {
+                if (in_array($attributeq, $model->attributes())) {
+                    $query = $query->andFilterWhere(['like', $attributeq, '%' . $word . '%', false]);
                 }
             }
         }
@@ -89,44 +86,28 @@ trait ApiOpen
         return $query;
     }
 
-    public function getData2($query, $perPage = 20, $validatePage = true) {
-        return new ActiveDataProvider([
-            'query' => $query,
-            'totalCount' => count($query->all()),
-            'pagination' => [
-                'pageSize' => Yii::$app->request->get('per-page') ?? $perPage,
-                'validatePage' => $validatePage
-            ],
-        ]);
-    }
-
     public function getData($query, $perPage = 20, $validatePage = true)
     {
-        $get_data = Yii::$app->request->get('per-page');
-        if ($get_data <= 0) {
-            $get_data = $perPage;
-        }
-
         $data = new ActiveDataProvider([
             'query' => $query,
             'pagination' => [
-                'pageSize' => $get_data ?? $perPage,
+                'pageSize' => Yii::$app->request->get('per-page') ?? $perPage,
                 'validatePage' => $validatePage
             ],
         ]);
 
         $dataRes = [];
         $dataRes['items'] = $data;
-        $dataRes['_meta']['totalCount'] = (int) count($query->all());
-        $dataRes['_meta']['currentPage'] = (int) $get_data ?? 1;
+        $dataRes['_meta']['totalCount'] = (int) $query->count();
+        $dataRes['_meta']['currentPage'] = (int) Yii::$app->request->get('page') ?? 1;
         $dataRes['_meta']['pageCount'] =
-            (($dataRes['_meta']['totalCount'] / ($get_data ?? 20))
+            (($dataRes['_meta']['totalCount'] / (Yii::$app->request->get('per-page') ?? 20))
                 >
-                (int) ($dataRes['_meta']['totalCount'] / ($get_data ?? 20)))
-            ?  (int) ($dataRes['_meta']['totalCount'] / ($get_data ?? 20)) + 1 :
-            (int) ($dataRes['_meta']['totalCount'] / ($get_data ?? 20));
+                (int) ($dataRes['_meta']['totalCount'] / (Yii::$app->request->get('per-page') ?? 20)))
+            ?  (int) ($dataRes['_meta']['totalCount'] / (Yii::$app->request->get('per-page') ?? 20)) + 1 :
+            (int) ($dataRes['_meta']['totalCount'] / (Yii::$app->request->get('per-page') ?? 20));
 
-        $dataRes['_meta']['perPage'] = (int) $get_data ?? 20;
+        $dataRes['_meta']['perPage'] = (int) Yii::$app->request->get('per-page') ?? 20;
 
         if ($data) return $dataRes;
     }
@@ -150,7 +131,7 @@ trait ApiOpen
 
     public function checkLead($model, $role)
     {
-        $user_id = current_user_id();
+        $user_id = Current_user_id();
         $roles = (object)\Yii::$app->authManager->getRolesByUser($user_id);
 
         if (property_exists($roles, $role)) {
@@ -163,7 +144,7 @@ trait ApiOpen
 
     // public function isRole($roleName)
     // {
-    //     $user_id = current_user_id();
+    //     $user_id = Current_user_id();
     //     $roles = (object)\Yii::$app->authManager->getRolesByUser($user_id);
 
     //     if (property_exists($roles, $roleName)) {
@@ -175,7 +156,7 @@ trait ApiOpen
 
     public function isSelf($userAccessTypeId)
     {
-        $user_id = current_user_id();
+        $user_id = Current_user_id();
         $roles = (object)\Yii::$app->authManager->getRolesByUser($user_id);
 
         $userAccess = UserAccess::findOne([

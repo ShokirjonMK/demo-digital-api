@@ -2,18 +2,17 @@
 
 namespace api\controllers;
 
-use common\models\model\FinalExam;
-use common\models\model\Group;
-use common\models\model\Student;
-use common\models\model\StudentGroup;
 use common\models\model\StudentMark;
 use Yii;
 use base\ResponseStatus;
+use common\models\model\Faculty;
+use common\models\model\Profile;
 use common\models\model\Translate;
+use yii\db\Expression;
 
 class StudentMarkController extends ApiActiveController
 {
-    public $modelClass = 'api\resources\Building';
+    public $modelClass = 'api\resources\StudentMark';
 
     public function actions()
     {
@@ -28,12 +27,114 @@ class StudentMarkController extends ApiActiveController
         $model = new StudentMark();
 
         $query = $model->find()
-            ->where(['is_deleted' => 0]);
+            // ->andWhere([$table_name.'.status' => 1, $table_name . '.is_deleted' => 0])
+            ->andWhere([$model->tableName() . '.is_deleted' => 0])
+            ->andWhere([$model->tableName() . '.archived' => 0])
+            ->join('INNER JOIN', 'student', 'student.id = ' . $model->tableName() . '.student_id')
+            ->join('INNER JOIN', 'profile', 'profile.user_id = student.user_id');
 
-        if (isRole('student')) {
-            $student = Student::findOne(['user_id' => current_user_id()]);
-            if ($student) {
-                $query->andWhere(['student_id' => $student->id]);
+
+        if (isRole("student")) {
+            $query = $query->andWhere([
+                'student_id' => $this->student()
+            ]);
+        }
+
+        //  Filter from Profile 
+        $profile = new Profile();
+        $filter = Yii::$app->request->get('filter');
+        $filter = json_decode(str_replace("'", "", $filter));
+        if (isset($filter)) {
+            foreach ($filter as $attribute => $id) {
+                if (in_array($attribute, $profile->attributes())) {
+                    $query = $query->andFilterWhere(['profile.' . $attribute => $id]);
+                }
+            }
+        }
+
+        $queryfilter = Yii::$app->request->get('filter-like');
+        $queryfilter = json_decode(str_replace("'", "", $queryfilter));
+        if (isset($queryfilter)) {
+            foreach ($queryfilter as $attributeq => $word) {
+                if (in_array($attributeq, $profile->attributes())) {
+                    $query = $query->andFilterWhere(['like', 'profile.' . $attributeq, '%' . $word . '%', false]);
+                }
+            }
+        }
+        // ***
+
+
+        /**Baho bo'yicha */
+        $mark = Yii::$app->request->get('mark');
+        if (isset($mark)) {
+            if ($mark == 0) {
+                $query->andFilterWhere([$model->tableName() . '.ball' => null]);
+            } elseif ($mark == 2) {
+                // ball between 0 and 55
+                $query->andFilterWhere(['between', $model->tableName() . '.ball', 0, 55]);
+            } elseif ($mark == 3) {
+                // ball between 56 and 71
+                $query->andFilterWhere(['between', $model->tableName() . '.ball', 56, 71]);
+            } elseif ($mark == 4) {
+                // ball between 72 and 85
+                $query->andFilterWhere(['between', $model->tableName() . '.ball', 72, 85]);
+            } elseif ($mark == 5) {
+                // ball greater than 86
+                $query->andFilterWhere(['>', $model->tableName() . '.ball', 85]);
+            }
+        }
+
+        /** Yiqilganlar */
+        $fallen = Yii::$app->request->get('fallen');
+        if (isset($fallen)) {
+            // ball is null or smaller than 56
+            $query->andWhere(['or', [$model->tableName() . '.ball' => null], ['<', $model->tableName() . '.ball', 56]]);
+        }
+
+        /** qarzdorligi yoq */
+        $no_debt = Yii::$app->request->get('no_debt');
+        if (isset($no_debt)) {
+            // ball greater than or equal to 56
+            $query->andWhere(['>=', $model->tableName() . '.ball', 56]);
+        }
+
+        /** qarzdorligi yoq */
+        $no_debt = Yii::$app->request->get('no_debt');
+        if (isset($no_debt)) {
+            // ball greater than or equal to 56
+            $query->andWhere(['>=', $model->tableName() . '.ball', 56]);
+        }
+
+
+        /** 3 tadan kam qarzdorlik borlar */
+        $lass_3_debts = Yii::$app->request->get('lass_3_debts');
+        if (isset($lass_3_debts)) {
+            if ($lass_3_debts == 1)
+                $query->andWhere(['or', [$model->tableName() . '.ball' => null], ['<', $model->tableName() . '.ball', 56]])
+                    ->groupBy($model->tableName() . 'student_id')
+                    ->having(new Expression('COUNT(*) <= 3'));
+        }
+
+        /** 5 tadan ko'p qarzdorlik borlar */
+        $more_5_debts = Yii::$app->request->get('more_5_debts');
+        if (isset($more_5_debts)) {
+            if ($more_5_debts == 1)
+                $query->andWhere(['or', [$model->tableName() . '.ball' => null], ['<', $model->tableName() . '.ball', 56]])
+                    ->groupBy($model->tableName() . 'student_id')
+                    ->having(new Expression('COUNT(*) >= 5'));
+        }
+
+        // faculty_id
+        if (isRole("dean")) {
+            $t = $this->isSelf(Faculty::USER_ACCESS_TYPE_ID);
+            if ($t['status'] == 1) {
+                $query = $query->andWhere([
+                    $model->tableName() . '.faculty_id' => $t['UserAccess']->table_id
+                ]);
+            } elseif ($t['status'] == 2) {
+                $query->andFilterWhere([
+                    $model->tableName() . '.faculty_id' => -1
+                ]);
             }
         }
 
@@ -41,65 +142,8 @@ class StudentMarkController extends ApiActiveController
         $query = $this->filterAll($query, $model);
 
         // sort
-        $query = $this->sort($query);
-
-        // data
-        $data =  $this->getData($query);
-        return $this->response(1, _e('Success'), $data);
-    }
-
-    public function actionGet($lang)
-    {
-        $model = new StudentMark();
-        $student = new Student();
-
-        $groupId = Yii::$app->request->get('group_id');
-
-        $eduYearId = Yii::$app->request->get('edu_year_id');
-        if ($eduYearId == null) {
-            $eduYearId = activeYearId();
-        }
-
-        $eduSemestrId = Yii::$app->request->get('edu_semestr_id');
-
-        if (isRole('teacher')) {
-            $group = Group::findOne($groupId);
-            $eduSemestrId = $group->activeEduSemestr->id;
-        }
-
-        $studentIdsQuery = StudentGroup::find()
-            ->select('student_id')
-            ->where([
-                'edu_year_id' => $eduYearId,
-                'edu_semestr_id' => $eduSemestrId,
-                'status' => 1,
-                'is_deleted' => 0
-            ]);
-
-        if ($groupId) {
-            $studentIdsQuery->andWhere(['group_id' => $groupId]);
-        }
-
-        $subQuery = $student->find()
-            ->select('id')
-            ->where(['is_deleted' => 0])
-            ->andWhere(['in' , 'id', $studentIdsQuery]);
-
-        if (isRole('tutor')) {
-            $subQuery->andWhere([
-                'tutor_id' => current_user_id(),
-            ]);
-        }
-
-        $query = $model->find()
-            ->where(['is_deleted' => 0])
-            ->andWhere(['in' , 'student_id', $subQuery]);
-
-        // filter
-        $query = $this->filterAll($query, $model);
-
-        // sort
-        $query = $this->sort($query);
+        // $query = $this->sort($query);
+        $query->orderBy(['order' => SORT_ASC]);
 
         // data
         $data =  $this->getData($query);
@@ -108,64 +152,64 @@ class StudentMarkController extends ApiActiveController
 
     public function actionCreate($lang)
     {
+        // return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::BAD_REQUEST);
+
+        $model = new StudentMark();
         $post = Yii::$app->request->post();
+        $this->load($model, $post);
 
-        $result = StudentMark::createItem($post);
-
+        $result = StudentMark::createItem($model, $post);
         if (!is_array($result)) {
-            return $this->response(1, _e($this->controller_name . ' successfully created.'), null, null, ResponseStatus::CREATED);
+            return $this->response(1, _e($this->controller_name . ' successfully created.'), $model, null, ResponseStatus::CREATED);
         } else {
             return $this->response(0, _e('There is an error occurred while processing.'), null, $result, ResponseStatus::UPROCESSABLE_ENTITY);
         }
     }
 
-    public function actionStudentMarkUpdate($lang)
+    public function actionUpdate($lang, $id)
     {
-        $post = Yii::$app->request->post();
-        $result = StudentMark::updateItem($post);
-        if (!is_array($result)) {
-            return $this->response(1, _e($this->controller_name . ' successfully updated.'), null, null, ResponseStatus::OK);
-        } else {
-            return $this->response(0, _e('There is an error occurred while processing.'), null, $result, ResponseStatus::UPROCESSABLE_ENTITY);
-        }
-    }
+        return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::BAD_REQUEST);
 
-    public function actionFinalExam($lang, $id)
-    {
-        $model = FinalExam::findOne([
-            'id' => $id,
-            'is_deleted' => 0
-        ]);
+        $model = StudentMark::findOne($id);
         if (!$model) {
             return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
         }
-        if ($model->status != 3) {
-            return $this->response(0, _e('Evaluation not allowed.'), null, null, ResponseStatus::UPROCESSABLE_ENTITY);
-        }
-        if (isRole('teacher') || isRole('tutor')) {
-            if ($model->user_id != current_user_id()) {
-                return $this->response(0, _e('This information will not be shown to you.'), null, null, ResponseStatus::FORBIDDEN);
-            }
-        }
         $post = Yii::$app->request->post();
-        $result = StudentMark::finalExam($post, $model);
+        $this->load($model, $post);
+        $result = StudentMark::updateItem($model, $post);
         if (!is_array($result)) {
-            return $this->response(1, _e($this->controller_name . ' successfully updated.'), null, null, ResponseStatus::OK);
+            return $this->response(1, _e($this->controller_name . ' successfully updated.'), $model, null, ResponseStatus::OK);
         } else {
             return $this->response(0, _e('There is an error occurred while processing.'), null, $result, ResponseStatus::UPROCESSABLE_ENTITY);
         }
     }
 
-    public function actionExam()
-    {
-        $post = Yii::$app->request->post();
-        $result = StudentMark::examItem($post);
-        if (!is_array($result)) {
-            return $this->response(1, _e($this->controller_name . ' successfully updated.'), null, null, ResponseStatus::OK);
-        } else {
-            return $this->response(0, _e('There is an error occurred while processing.'), null, $result, ResponseStatus::UPROCESSABLE_ENTITY);
-        }
-    }
+    // public function actionChangeBallWithFile($lang, $id = null)
+    // {
+    //     $model = ExamControlStudent::findOne($id);
+    //     $post = Yii::$app->request->post();
+
+    //     if (!$model) {
+    //         $model = new ExamControlStudent();
+    //         $this->load($model, $post);
+    //         $result = ExamControlStudent::createItem($model, $post, 1);
+
+    //         if (!is_array($result)) {
+    //             return $this->response(1, _e($this->controller_name . ' successfully updated.'), $model, null, ResponseStatus::OK);
+    //         } else {
+    //             return $this->response(0, _e('There is an error occurred while processing.'), null, $result, ResponseStatus::UPROCESSABLE_ENTITY);
+    //         }
+    //     }
+
+
+    //     $result = ExamControlStudent::changeBallWithFile($model, $post);
+
+    //     if (!is_array($result)) {
+    //         return $this->response(1, _e($this->controller_name . ' successfully updated.'), $model, null, ResponseStatus::OK);
+    //     } else {
+    //         return $this->response(0, _e('There is an error occurred while processing.'), null, $result, ResponseStatus::UPROCESSABLE_ENTITY);
+    //     }
+    // }
 
     public function actionView($lang, $id)
     {
@@ -180,6 +224,8 @@ class StudentMarkController extends ApiActiveController
 
     public function actionDelete($lang, $id)
     {
+        return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::BAD_REQUEST);
+
         $model = StudentMark::find()
             ->andWhere(['id' => $id, 'is_deleted' => 0])
             ->one();

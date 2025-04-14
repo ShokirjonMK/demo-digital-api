@@ -8,19 +8,15 @@ use common\models\model\UserAccessType;
 
 class UserAccessTypeController extends ApiActiveController
 {
-
     public $modelClass = 'api\resources\UserAccess';
 
     public function actions()
-
-
-
     {
         return [];
     }
 
     public $table_name = 'user_access_type';
-    public $controller_name = 'Useraccesstype';
+    public $controller_name = 'UserAccessType';
 
     public function actionIndex($lang)
     {
@@ -41,7 +37,7 @@ class UserAccessTypeController extends ApiActiveController
 
     public function actionCreate($lang)
     {
-//        return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::BAD_REQUEST);
+        return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::BAD_REQUEST);
 
         $model = new UserAccessType();
         $post = Yii::$app->request->post();

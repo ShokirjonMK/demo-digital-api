@@ -43,7 +43,7 @@
             <div class="container">
                 <div class="row">
                     <div class="col-md-8 offset-md-2">
-                        <p>©<?= _e('{year} All Rights Reserved.', ['year' => date('Y')]); ?> <?= _e('Created by {copyright}', ['copyright' => '<a href="https://www.utas.uz/" target="_blank">www.utas.uz</a>']); ?></p>
+                        <p>©<?= _e('{year} All Rights Reserved.', ['year' => date('Y')]); ?> <?= _e('Created by {copyright}', ['copyright' => '<a href="https://www.tsul.uz/" target="_blank">www.tsul.uz</a>']); ?></p>
                     </div>
                 </div>
             </div>

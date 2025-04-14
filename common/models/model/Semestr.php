@@ -20,7 +20,7 @@ use yii\behaviors\TimestampBehavior;
  * @property int $is_deleted
  *
  * @property EduSemestr[] $eduSemestrs
- * @property TimeTable1[] $timeTables
+ * @property TimeTable[] $timeTables
  */
 class Semestr extends \yii\db\ActiveRecord
 {
@@ -69,7 +69,7 @@ class Semestr extends \yii\db\ActiveRecord
             'course_id' => 'Course ID',
             //            'name' => 'Name',
             'order' => _e('Order'),
-            'type' => 'Type',  //
+            'type' => 'Type',
             'status' => _e('Status'),
             'created_at' => _e('Created At'),
             'updated_at' => _e('Updated At'),
@@ -86,10 +86,9 @@ class Semestr extends \yii\db\ActiveRecord
             'name' => function ($model) {
                 return $model->translate->name ?? '';
             },
-            'course_id',
             'order',
             'status',
-//            'type',  // kuzgi=1  bahorgi=2
+            'type',
 
             'created_at',
             'updated_at',
@@ -127,6 +126,7 @@ class Semestr extends \yii\db\ActiveRecord
         if (Yii::$app->request->get('self') == 1) {
             return $this->infoRelation[0];
         }
+
         return $this->infoRelation[0] ?? $this->infoRelationDefaultLanguage[0];
     }
 
@@ -177,7 +177,7 @@ class Semestr extends \yii\db\ActiveRecord
      */
     public function getTimeTables()
     {
-        return $this->hasMany(TimeTable1::className(), ['semestr_id' => 'id']);
+        return $this->hasMany(TimeTable::className(), ['semestr_id' => 'id']);
     }
 
 
@@ -243,9 +243,9 @@ class Semestr extends \yii\db\ActiveRecord
     public function beforeSave($insert)
     {
         if ($insert) {
-            $this->created_by = current_user_id();
+            $this->created_by = Current_user_id();
         } else {
-            $this->updated_by = current_user_id();
+            $this->updated_by = Current_user_id();
         }
         return parent::beforeSave($insert);
     }

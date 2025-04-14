@@ -26,22 +26,21 @@ class BuildingController extends ApiActiveController
         $query = $model->find()
             ->with(['infoRelation'])
             // ->andWhere([$table_name.'.status' => 1, $table_name . '.is_deleted' => 0])
-            ->andWhere([$this->table_name . '.is_deleted' => 0])
-            //             ->join("INNER JOIN", "translate tr", "tr.model_id = $this->table_name.id and tr.table_name = '$this->table_name'" )
+            ->andWhere([$model->tableName() . '.is_deleted' => 0])
+            // ->join("INNER JOIN", "translate tr", "tr.model_id = $this->table_name.id and tr.table_name = '$this->table_name'" )
             ->leftJoin("translate tr", "tr.model_id = $this->table_name.id and tr.table_name = '$this->table_name'")
-            ->groupBy($this->table_name . '.id')
-            //             ->andWhere(['tr.language' => Yii::$app->request->get('lang')])
+            // ->groupBy($model->tableName() . '.id')
+            // ->andWhere(['tr.language' => Yii::$app->request->get('lang')])
             // ->andWhere(['tr.tabel_name' => 'faculty'])
             ->andFilterWhere(['like', 'tr.name', Yii::$app->request->get('query')]);
 
-
-        //        dd($query);
 
         // filter
         $query = $this->filterAll($query, $model);
 
         // sort
-        $query = $this->sort($query);
+        // $query = $this->sort($query);
+        $query->orderBy(['order' => SORT_ASC]);
 
         // data
         $data =  $this->getData($query);
@@ -80,10 +79,6 @@ class BuildingController extends ApiActiveController
 
     public function actionView($lang, $id)
     {
-
-        /********** */
-
-
         $model = Building::find()
             ->andWhere(['id' => $id, 'is_deleted' => 0])
             ->one();
@@ -112,5 +107,10 @@ class BuildingController extends ApiActiveController
             return $this->response(1, _e($this->controller_name . ' succesfully removed.'), null, null, ResponseStatus::OK);
         }
         return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::BAD_REQUEST);
+    }
+
+    public function actionType()
+    {
+        return $this->response(1, _e('Success.'), Building::typeList(), null, ResponseStatus::OK);
     }
 }

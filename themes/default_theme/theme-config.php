@@ -4,5 +4,5 @@ return array(
     'description' => 'Default theme for your store!',
     'version' => '1.0.0',
     'author' => 'SokirjonMK',
-    'author_url' => 'https://utas.uz/',
+    'author_url' => 'https://tsul.uz/',
 );

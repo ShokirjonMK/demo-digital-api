@@ -110,7 +110,7 @@ function displayHelp()
     echo <<<EOF
 Composer Installer
 ------------------
-Option
+Options
 --help               this help
 --check              for checking environment only
 --force              forces the installation

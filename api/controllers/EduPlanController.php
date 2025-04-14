@@ -3,12 +3,6 @@
 namespace api\controllers;
 
 use common\models\model\EduPlan;
-use common\models\model\EduSemestr;
-use common\models\model\Kafedra;
-use common\models\model\Semestr;
-use common\models\model\TimeTable1;
-use common\models\model\TimetableDate;
-use common\models\Student;
 use Yii;
 use api\resources\Job;
 use base\ResponseStatus;
@@ -35,55 +29,24 @@ class EduPlanController extends ApiActiveController
             ->with(['infoRelation'])
             ->andWhere([$this->table_name . '.is_deleted' => 0])
             ->leftJoin("translate tr", "tr.model_id = $this->table_name.id and tr.table_name = '$this->table_name'")
-            ->groupBy($this->table_name . '.id')
-            //            ->andWhere(['tr.language' => Yii::$app->request->get('lang')])
+            // ->groupBy($this->table_name . '.id')
             ->andFilterWhere(['like', 'tr.name', Yii::$app->request->get('query')]);
 
-        if (isRole('teacher')) {
-            $query->andWhere(['in' , $this->table_name .'.id' , TimetableDate::find()
-                ->select('edu_plan_id')
-                ->where([
-                    'user_id' => current_user_id(),
-                    'status' => 1,
-                    'is_deleted' => 0,
-                ])]);
-        } elseif (!isRole('rector') && !isRole('prorector')) {
-
-            if (isRole('tutor')) {
-                $query->andWhere(['in' , $this->table_name .'.id' , Student::find()
-                    ->select('edu_plan_id')
-                    ->where([
-                        'tutor_id' => current_user_id(),
-                        'status' => 10,
-                        'is_deleted' => 0
-                    ])
-                ]);
-            } else {
-                $t = $this->isSelf(Faculty::USER_ACCESS_TYPE_ID);
-                if ($t['status'] == 1) {
-                    $query->andFilterWhere([
-                        $this->table_name.'.faculty_id' => $t['UserAccess']
-                    ]);
-                } elseif ($t['status'] == 2) {
-                    $query->andFilterWhere([
-                        $this->table_name.'.faculty_id' => -1
-                    ]);
-                }
-            }
-        }
-
-
-        $courseId = Yii::$app->request->get('course_id');
-        if (isset($courseId)) {
-            $query = $query->andFilterWhere([
-                'in' , $this->table_name . '.id' , EduSemestr::find()->select('edu_plan_id')->where([
-                    'course_id' => $courseId,
-                    'is_checked' => 1,
-                    'status' => 1,
-                    'is_deleted' => 0,
-                ])
+        /*  is Self  */
+        /*  $t = $this->isSelf(Faculty::USER_ACCESS_TYPE_ID);
+        if ($t['status'] == 1) {
+            $query->andFilterWhere([
+                'faculty_id' => $t['UserAccess']->table_id
             ]);
-        }
+        } elseif ($t['status'] == 2) {
+            $query->andFilterWhere([
+                'faculty_id' => -1
+            ]);
+        } */
+
+        // dd('ss');
+
+        /*  is Self  */
 
         // filter
         $query = $this->filterAll($query, $model);
@@ -105,7 +68,7 @@ class EduPlanController extends ApiActiveController
         /*  is Self  */
         $t = $this->isSelf(Faculty::USER_ACCESS_TYPE_ID);
         if ($t['status'] == 1) {
-            $post['faculty_id'] = $t['UserAccess'];
+            $post['faculty_id'] = $t['UserAccess']->table_id;
         } elseif ($t['status'] == 2) {
             return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::FORBIDDEN);
         }
@@ -122,7 +85,6 @@ class EduPlanController extends ApiActiveController
 
     public function actionUpdate($lang, $id)
     {
-        return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
         $model = EduPlan::findOne($id);
         if (!$model) {
             return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
@@ -131,7 +93,7 @@ class EduPlanController extends ApiActiveController
         // is Self 
         $t = $this->isSelf(Faculty::USER_ACCESS_TYPE_ID);
         if ($t['status'] == 1) {
-            if ($model->faculty_id != $t['UserAccess']) {
+            if ($model->faculty_id != $t['UserAccess']->table_id) {
                 return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::FORBIDDEN);
             }
         } elseif ($t['status'] == 2) {
@@ -159,27 +121,15 @@ class EduPlanController extends ApiActiveController
             return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
         }
 
-        // is Self
-        if (isRole('teacher')) {
-            $query = TimeTable1::find()
-                ->andWhere(['in' , 'edu_plan_id' ,
-                    TimeTable1::find()
-                        ->select('edu_plan_id')
-                        ->where(['edu_plan_id' => $model->id , 'user_id' => current_user_id(), 'status' => 1 , 'is_deleted' => 0])])->all();
-            if (count($query) <= 0) {
+        // is Self 
+        $t = $this->isSelf(Faculty::USER_ACCESS_TYPE_ID);
+        if ($t['status'] == 1) {
+            if ($model->faculty_id != $t['UserAccess']->table_id) {
                 return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::FORBIDDEN);
             }
-        } else {
-            $t = $this->isSelf(Faculty::USER_ACCESS_TYPE_ID);
-            if ($t['status'] == 1) {
-                if ($model->faculty_id != $t['UserAccess']) {
-                    return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::FORBIDDEN);
-                }
-            } elseif ($t['status'] == 2) {
-                return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::FORBIDDEN);
-            }
+        } elseif ($t['status'] == 2) {
+            return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::FORBIDDEN);
         }
-
 
         return $this->response(1, _e('Success.'), $model, null, ResponseStatus::OK);
     }
@@ -194,7 +144,7 @@ class EduPlanController extends ApiActiveController
         // is Self 
         $t = $this->isSelf(Faculty::USER_ACCESS_TYPE_ID);
         if ($t['status'] == 1) {
-            if ($model->faculty_id != $t['UserAccess']) {
+            if ($model->faculty_id != $t['UserAccess']->table_id) {
                 return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::FORBIDDEN);
             }
         } elseif ($t['status'] == 2) {
@@ -206,7 +156,7 @@ class EduPlanController extends ApiActiveController
 
         if ($result) {
             $result->is_deleted = 1;
-            $result->save(false);
+            $result->update();
 
             return $this->response(1, _e('EduPlan succesfully removed.'), null, null, ResponseStatus::OK);
         }

@@ -5892,7 +5892,7 @@ Editableform based on Twitter Bootstrap 3
 					// Preliminary otions
 					xopts = $.extend({}, defaults, elopts, options),
 					locopts = opts_from_locale(xopts.language),
-					// Option priority: js args, data-attrs, locales, defaults
+					// Options priority: js args, data-attrs, locales, defaults
 					opts = $.extend({}, defaults, locopts, elopts, options);
 				if ($this.is('.input-daterange') || opts.inputs){
 					var ropts = {

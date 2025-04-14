@@ -55,8 +55,8 @@ class Kafedra extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['faculty_id'], 'required'],
-            [['direction_id', 'user_id', 'faculty_id', 'order', 'status', 'created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted'], 'integer'],
+            [['direction_id', 'faculty_id'], 'required'],
+            [['direction_id', 'user_id', 'faculty_id', 'turniket_department_id', 'order', 'status', 'created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted'], 'integer'],
             //            [['name'], 'string', 'max' => 255],
             [['direction_id'], 'exist', 'skipOnError' => true, 'targetClass' => Direction::className(), 'targetAttribute' => ['direction_id' => 'id']],
             [['faculty_id'], 'exist', 'skipOnError' => true, 'targetClass' => Faculty::className(), 'targetAttribute' => ['faculty_id' => 'id']],
@@ -92,9 +92,10 @@ class Kafedra extends \yii\db\ActiveRecord
             },
             'direction_id',
             'faculty_id',
-            'user_id',
+            'turniket_department_id',
             'order',
             'status',
+            'user_id',
             'created_at',
             'updated_at',
             'created_by',
@@ -111,6 +112,9 @@ class Kafedra extends \yii\db\ActiveRecord
             'direction',
             'leader',
             'userAccess',
+            'userAccessCount',
+
+            'mudir',
 
             'faculty',
             'subjects',
@@ -189,7 +193,14 @@ class Kafedra extends \yii\db\ActiveRecord
      */
     public function getLeader()
     {
-        return $this->hasOne(User::className(), ['id' => 'user_id']);
+        return $this->hasOne(Profile::className(), ['user_id' => 'user_id'])->select(['first_name', 'last_name', 'middle_name', 'user_id']);
+
+        // return $this->hasOne(User::className(), ['id' => 'user_id']);
+    }
+
+    public function getMudir()
+    {
+        return $this->hasOne(Profile::className(), ['user_id' => 'user_id'])->select(['first_name', 'last_name', 'middle_name']);
     }
 
     /**
@@ -197,17 +208,15 @@ class Kafedra extends \yii\db\ActiveRecord
      * userAccess
      * @return \yii\db\ActiveQuery
      */
-
-    // public function getuserAccess()
-    // {
-    //     return $this->hasMany(UserAccess::className(), ['table_id' => 'id'])
-    //         ->andOnCondition(['user_access_type_id' => self::USER_ACCESS_TYPE_ID]);
-    // }
-
     public function getUserAccess()
     {
         return $this->hasMany(UserAccess::className(), ['table_id' => 'id'])
-            ->andOnCondition(['USER_ACCESS_TYPE_ID' => self::USER_ACCESS_TYPE_ID, 'is_deleted' => 0, 'status' => 1]);
+            ->andOnCondition(['USER_ACCESS_TYPE_ID' => self::USER_ACCESS_TYPE_ID, 'is_deleted' => 0]);
+    }
+
+    public function getUserAccessCount()
+    {
+        return count($this->userAccess);
     }
 
     public static function createItem($model, $post)
@@ -230,61 +239,6 @@ class Kafedra extends \yii\db\ActiveRecord
                 } else {
                     Translate::createTranslate($post['name'], $model->tableName(), $model->id);
                 }
-                if (isset($post['user_id'])) {
-                    $userAccess = new UserAccess();
-                    $userAccess->user_id = $post['user_id'];
-                    $userAccess->user_access_type_id = self::USER_ACCESS_TYPE_ID;
-                    $userAccess->table_id = $model->id;
-                    $userAccess->is_leader = 1;
-                    if ($userAccess->save()) {
-                        if (isset($post['teacher_access'])) {
-                            $post['teacher_access'] = str_replace("'", "", $post['teacher_access']);
-                            $teacher_access = json_decode(str_replace("'", "", $post['teacher_access']));
-
-                            TeacherAccess::updateAll(['status' => 0 , 'is_deleted' => 1], ['user_id' => $model->user_id]);
-
-                            foreach ($teacher_access as $teacher_access_key => $teacher_access_value) {
-                                $subject = Subject::findOne($teacher_access_key);
-                                if (isset($subject)) {
-                                    foreach ($teacher_access_value as $langKey => $langValue) {
-                                        $language = Languages::findOne($langKey);
-                                        if (isset($language)) {
-                                            foreach ($langValue as $subject_category_value) {
-                                                $subject_category = SubjectCategory::findOne($subject_category_value);
-                                                if (isset($subject_category)) {
-                                                    $userAccessBefore = TeacherAccess::findOne([
-                                                        'user_id' => $model->user_id,
-                                                        'subject_id' => $teacher_access_key,
-                                                        'language_id' => $langKey,
-                                                        'is_lecture' => $subject_category_value,
-                                                    ]);
-                                                    if (!isset($userAccessBefore)) {
-                                                        $teacherAccessNew = new TeacherAccess();
-                                                        $teacherAccessNew->user_id = $model->user_id;
-                                                        $teacherAccessNew->subject_id = $teacher_access_key;
-                                                        $teacherAccessNew->language_id = $langKey;
-                                                        $teacherAccessNew->is_lecture = $subject_category_value;
-                                                        $teacherAccessNew->save();
-                                                    } else {
-                                                        $userAccessBefore->status = 1;
-                                                        $userAccessBefore->is_deleted = 0;
-                                                        $userAccessBefore->save(false);
-                                                    }
-                                                } else {
-                                                    $errors[] = ['subject_category_id' => [_e($subject_category_value.' No subject category ID available')]];
-                                                }
-                                            }
-                                        } else {
-                                            $errors[] = ['language_id' => [_e($langKey.' No language ID available')]];
-                                        }
-                                    }
-                                } else {
-                                    $errors[] = ['subject_id' => [_e($teacher_access_key.' No subject ID available')]];
-                                }
-                            }
-                        }
-                    }
-                }
             }
         } else {
             $errors = double_errors($errors, $has_error['errors']);
@@ -303,83 +257,22 @@ class Kafedra extends \yii\db\ActiveRecord
     {
         $transaction = Yii::$app->db->beginTransaction();
         $errors = [];
-
-        if (!isset($post['direction_id'])) {
-            $model->direction_id = null;
-        }
-
         if (!($model->validate())) {
             $errors[] = $model->errors;
         }
-
         $has_error = Translate::checkingUpdate($post);
-
         if ($has_error['status']) {
             if ($model->save()) {
-
-                /* update User Access and update Teacher Access */
+                /* update User Access */
                 if (isset($post['user_id'])) {
-//                    TeacherAccess::deleteAll(['user_id' => $post['user_id']]);
                     $userAccessUser = User::findOne($post['user_id']);
                     if (isset($userAccessUser)) {
-//                        dd(UserAccess::changeLeader($model->id, self::USER_ACCESS_TYPE_ID, $userAccessUser->id));
-//                        dd(UserAccess::changeLeader($model->id, self::USER_ACCESS_TYPE_ID, $userAccessUser->id));
                         if (!(UserAccess::changeLeader($model->id, self::USER_ACCESS_TYPE_ID, $userAccessUser->id))) {
                             $errors = ['user_id' => _e('Error occured on updating UserAccess')];
                         }
                     }
-                    if (isset($post['teacher_access'])) {
-                        TeacherAccess::updateAll(['status' => 0 , 'is_deleted' => 1], ['user_id' => $post['user_id']]);
-                        $post['teacher_access'] = str_replace("'", "", $post['teacher_access']);
-                        $user_access = json_decode(str_replace("'", "", $post['teacher_access']));
-                        foreach ($user_access as $teacher_access_key => $teacher_access_value) {
-                            $subject = Subject::findOne($teacher_access_key);
-                            if (isset($subject)) {
-                                foreach ($teacher_access_value as $langKey => $langValue) {
-                                    $language = Languages::findOne([
-                                        'id' => $langKey,
-                                        'status' => 1,
-                                    ]);
-                                    if (isset($language)) {
-                                        foreach ($langValue as $subject_category_value) {
-                                            $subject_category = SubjectCategory::findOne($subject_category_value);
-                                            if (isset($subject_category)) {
-
-                                                $userAccessBefore = TeacherAccess::findOne([
-                                                    'user_id' => $model->user_id,
-                                                    'subject_id' => $teacher_access_key,
-                                                    'language_id' => $langKey,
-                                                    'is_lecture' => $subject_category_value,
-                                                    'status' => 0,
-                                                    'is_deleted' => 1
-                                                ]);
-                                                if (!isset($userAccessBefore)) {
-                                                    $teacherAccessNew = new TeacherAccess();
-                                                    $teacherAccessNew->user_id = $model->id;
-                                                    $teacherAccessNew->subject_id = $teacher_access_key;
-                                                    $teacherAccessNew->language_id = $langKey;
-                                                    $teacherAccessNew->is_lecture = $subject_category_value;
-                                                    $teacherAccessNew->save();
-                                                } else {
-                                                    $userAccessBefore->status = 1;
-                                                    $userAccessBefore->is_deleted = 0;
-                                                    $userAccessBefore->save(false);
-                                                }
-                                            } else {
-                                                $errors[] = ['subject_category_id' => [_e($subject_category_value.' No subject category ID available')]];
-                                            }
-                                        }
-                                    } else {
-                                        $errors[] = ['language_id' => [_e($langKey.' No language ID available')]];
-                                    }
-                                }
-                            } else {
-                                $errors[] = ['subject_id' => [_e($teacher_access_key.' No subject ID available')]];
-                            }
-                        }
-                    }
                 }
-                /* User Access and update Teacher Access */
+                /* User Access */
 
                 if (isset($post['name'])) {
                     if (isset($post['description'])) {
@@ -405,9 +298,9 @@ class Kafedra extends \yii\db\ActiveRecord
     public function beforeSave($insert)
     {
         if ($insert) {
-            $this->created_by = current_user_id();
+            $this->created_by = Current_user_id();
         } else {
-            $this->updated_by = current_user_id();
+            $this->updated_by = Current_user_id();
         }
         return parent::beforeSave($insert);
     }

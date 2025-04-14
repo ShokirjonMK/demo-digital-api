@@ -126,9 +126,9 @@ class Translate extends \yii\db\ActiveRecord
     public function beforeSave($insert)
     {
         if ($insert) {
-            $this->created_by = current_user_id();
+            $this->created_by = Current_user_id();
         } else {
-            $this->updated_by = current_user_id();
+            $this->updated_by = Current_user_id();
         }
         return parent::beforeSave($insert);
     }
@@ -203,6 +203,7 @@ class Translate extends \yii\db\ActiveRecord
 
     public static function deleteTranslate($table_name, $model_id)
     {
+
         $transaction = Yii::$app->db->beginTransaction();
         $errors = [];
 
@@ -242,11 +243,12 @@ class Translate extends \yii\db\ActiveRecord
         if (isset($post['name'])) {
             if (!is_array($post['name'])) {
                 $errors[]['name'] = [_e('Name must be array.')];
-//                 $data['errors'][] = $errors;
+                // $data['errors'][] = $errors;
                 $data['status'] = 0;
             } else {
                 $nameErrors = [];
                 foreach ($post['name'] as $lang => $value) {
+
                     if (!in_array($lang, $langCodes)) {
                         $nameErrors['name[' . $lang . ']'] = [_e('Wrong language code selected (' . $lang . ').')];
                         // $data['errors'][] = $errors;

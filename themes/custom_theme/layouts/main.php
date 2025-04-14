@@ -15,7 +15,7 @@ $this->beginPage(); ?>
     <?php $this->metaTags(); ?>
     <?php $this->registerCsrfMetaTags(); ?>
 
-    <meta name="author" content="utas | www.utas.uz">
+    <meta name="author" content="TSUL | www.tsul.uz">
     <meta name="version" content="<?= APP_VERSION; ?>">
     <link rel="shortcut icon" type="image/x-icon" href="<?= $site_favicon; ?>?version=1.0.0">
 

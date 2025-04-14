@@ -1,0 +1,10 @@
+# Query: Yii::$app->user->identity->id()
+# Flags: CaseSensitive WordMatch
+# ContextLines: 1
+
+1 result - 1 file
+
+api\controllers\ApiActionTrait.php:
+   99              /* $action_logos = new Action();
+  100:             $action_logos->user_id = current_user_id;
+  101              $action_logos->controller = Yii::$app->controller->id;

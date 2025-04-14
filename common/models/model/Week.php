@@ -19,7 +19,7 @@ use yii\behaviors\TimestampBehavior;
  * @property int $updated_by
  * @property int $is_deleted
  *
- * @property TimeTable1[] $timeTables
+ * @property TimeTable[] $timeTables
  */
 class Week extends \yii\db\ActiveRecord
 {
@@ -94,6 +94,7 @@ class Week extends \yii\db\ActiveRecord
     {
         $extraFields =  [
             'timeTables',
+            'current',
             'createdBy',
             'updatedBy',
             'createdAt',
@@ -102,6 +103,21 @@ class Week extends \yii\db\ActiveRecord
 
         return $extraFields;
     }
+
+
+    public function getCurrent()
+    {
+        $thisWeek = date("w");
+
+        if ($thisWeek == $this->id) {
+            return 1;
+        } else {
+            return 0;
+        }
+        return 1;
+    }
+
+
 
     public function getDescription()
     {
@@ -143,7 +159,7 @@ class Week extends \yii\db\ActiveRecord
      */
     public function getTimeTables()
     {
-        return $this->hasMany(TimeTable1::className(), ['week_id' => 'id']);
+        return $this->hasMany(TimeTable::className(), ['week_id' => 'id']);
     }
 
 

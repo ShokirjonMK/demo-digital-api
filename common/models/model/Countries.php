@@ -2,8 +2,7 @@
 
 namespace common\models\model;
 
-use common\models\Regions;
-use yii\helpers\ArrayHelper;
+use Yii;
 
 /**
  * This is the model class for table "countries".
@@ -11,18 +10,18 @@ use yii\helpers\ArrayHelper;
  * @property int $id
  * @property string $name
  * @property string $ISO
- * @property string $ISO3
- * @property int $num_code
+ * @property string|null $ISO3
+ * @property int|null $num_code
  * @property int $phone_code
  *
- * @property Regions[] $regions
+ * @property Profile[] $profiles
+ * @property Profile[] $profiles0
+ * @property Region[] $regions
  */
-class Countries extends \base\libs\RedisDB
+class Countries extends \yii\db\ActiveRecord
 {
     /**
-     * Table name
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public static function tableName()
     {
@@ -30,75 +29,61 @@ class Countries extends \base\libs\RedisDB
     }
 
     /**
-     * Rules
-     *
-     * @return array
+     * {@inheritdoc}
      */
     public function rules()
     {
         return [
-            [['ISO', 'ISO3', 'num_code', 'name', 'phone_code'], 'required'],
+            [['name', 'ISO', 'phone_code'], 'required'],
             [['num_code', 'phone_code'], 'integer'],
+            [['name'], 'string', 'max' => 80],
             [['ISO'], 'string', 'max' => 2],
             [['ISO3'], 'string', 'max' => 3],
-            [['name'], 'string', 'max' => 64],
         ];
     }
 
     /**
-     * Attribute labels
-     *
-     * @return array
+     * {@inheritdoc}
      */
     public function attributeLabels()
     {
         return [
-            'id' => _e('ID'),
-            'name' => _e('Title'),
-            'ISO' => 'ISO',
-            'ISO3' => 'ISO3',
-            'num_code' => _e('Number code'),
-            'phone_code' => _e('Phone code'),
+            'id' => 'ID',
+            'name' => 'Name',
+            'ISO' => 'Iso',
+            'ISO3' => 'Iso3',
+            'num_code' => 'Num Code',
+            'phone_code' => 'Phone Code',
         ];
     }
 
     /**
-     * Get regions
+     * Gets query for [[Profiles]].
      *
-     * @return void
+     * @return \yii\db\ActiveQuery
      */
-    public function getRegions()
+    public function getProfiles()
     {
-        return $this->hasMany(Regions::className(), ['country_id' => 'id']);
+        return $this->hasMany(Profile::className(), ['country_id' => 'id']);
     }
 
     /**
-     * Get country
+     * Gets query for [[Profiles0]].
      *
-     * @param [type] $where
-     * @param string $field
-     * @return object
+     * @return \yii\db\ActiveQuery
      */
-    public static function getOne($where, $field = '')
+    public function getProfiles0()
     {
-        $ouput = '';
-
-        $row = self::findOne($where);
-
-        if ($row) {
-            $ouput = $row;
-
-            if ($field) {
-                $ouput = $row->$field;
-            }
-        }
-
-        return $ouput;
+        return $this->hasMany(Profile::className(), ['permanent_country_id' => 'id']);
     }
 
-    public static function listAll(){
-
-        return ArrayHelper::map(self::find()->all(),'id','name');
-
+    /**
+     * Gets query for [[Regions]].
+     *
+     * @return \yii\db\ActiveQuery
+     */
+    public function getRegions()
+    {
+        return $this->hasMany(Region::className(), ['country_id' => 'id']);
     }
 }

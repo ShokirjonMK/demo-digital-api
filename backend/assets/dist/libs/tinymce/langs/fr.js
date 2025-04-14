@@ -131,7 +131,7 @@ tinymce.addI18n('fr',{
 "Flip vertically": "Retournement vertical",
 "Flip horizontally": "Retournement horizontal",
 "Edit image": "Modifier l'image",
-"Image options": "Option de l'image",
+"Image options": "Options de l'image",
 "Zoom in": "Zoomer",
 "Zoom out": "D\u00e9zoomer",
 "Crop": "Rogner",

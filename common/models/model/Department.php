@@ -60,26 +60,26 @@ class Department extends \yii\db\ActiveRecord
     /**
      * {@inheritdoc}
      */
-
     public function rules()
     {
         return [
             [['type'], 'required'],
-            [['parent_id','user_id', 'order', 'status', 'created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted'], 'integer'],
+            [['parent_id', 'order', 'turniket_department_id', 'status', 'created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted'], 'integer'],
             [['parent_id'], 'exist', 'skipOnError' => true, 'targetClass' => Department::className(), 'targetAttribute' => ['parent_id' => 'id']],
+
         ];
     }
 
     /**
      * {@inheritdoc}
      */
-
     public function attributeLabels()
     {
         return [
             'id' => 'ID',
             'type' => _e('Type'),
             'parent_id' => _e('Parent'),
+
             'order' => _e('Order'),
             'status' => _e('Status'),
             'created_at' => _e('Created At'),
@@ -97,8 +97,12 @@ class Department extends \yii\db\ActiveRecord
             'name' => function ($model) {
                 return $model->translate->name ?? '';
             },
+
             'type',
+            'turniket_department_id',
             'parent_id',
+
+            'user_id',
             'order',
             'status',
             'created_at',
@@ -114,12 +118,11 @@ class Department extends \yii\db\ActiveRecord
     public function extraFields()
     {
         $extraFields =  [
-            'description',
             'leader',
-            'types' => function ($model) {
-                return $this->typesArray($model->type);
-            },
             'userAccess',
+            'userAccessCount',
+            'depLead',
+
             'children',
             'parent',
             'createdBy',
@@ -170,11 +173,6 @@ class Department extends \yii\db\ActiveRecord
         return $this->hasOne(Department::className(), ['id' => 'parent_id']);
     }
 
-    public function getTypes($key)
-    {
-        return $this->typesArray($key = null);
-    }
-
     /**
      * Gets query for [[Children]].
      *
@@ -194,6 +192,30 @@ class Department extends \yii\db\ActiveRecord
     public function getLeader()
     {
         return $this->hasOne(User::className(), ['id' => 'user_id']);
+        return $this->hasOne(Profile::className(), ['user_id' => 'user_id'])->select(['first_name', 'last_name', 'middle_name']);
+    }
+    public function getDepLead()
+    {
+        return $this->hasOne(Profile::className(), ['user_id' => 'user_id'])->select(['first_name', 'last_name', 'middle_name']);
+        return $this->hasOne(User::className(), ['id' => 'user_id']);
+    }
+
+    /**
+     * Gets query for [[UserAccess]].
+     * userAccess
+     * @return \yii\db\ActiveQuery
+     */
+    public function getUserAccess()
+    {
+        return $this->hasMany(UserAccess::className(), ['table_id' => 'id'])
+            ->andOnCondition(['USER_ACCESS_TYPE_ID' => self::USER_ACCESS_TYPE_ID, 'is_deleted' => 0])
+            ->orderBy('order');
+    }
+
+
+    public function getUserAccessCount()
+    {
+        return count($this->userAccess);
     }
 
     /**
@@ -206,11 +228,11 @@ class Department extends \yii\db\ActiveRecord
     //     return $this->hasMany(UserAccess::className(), ['table_id' => 'id'])
     //         ->andOnCondition(['user_access_type_id' => self::USER_ACCESS_TYPE_ID]);
     // }
-    public function getUserAccess()
-    {
-        return $this->hasMany(UserAccess::className(), ['table_id' => 'id'])
-            ->andOnCondition(['USER_ACCESS_TYPE_ID' => self::USER_ACCESS_TYPE_ID, 'is_deleted' => 0]);
-    }
+    // public function getUserAccess()
+    // {
+    //     return $this->hasMany(UserAccess::className(), ['table_id' => 'id'])
+    //         ->andOnCondition(['USER_ACCESS_TYPE_ID' => self::USER_ACCESS_TYPE_ID, 'is_deleted' => 0]);
+    // }
 
     public static function createItem($model, $post)
     {
@@ -231,14 +253,6 @@ class Department extends \yii\db\ActiveRecord
                     Translate::createTranslate($post['name'], $model->tableName(), $model->id, $post['description']);
                 } else {
                     Translate::createTranslate($post['name'], $model->tableName(), $model->id);
-                }
-                if (isset($post['user_id'])) {
-                    $userAccess = new UserAccess();
-                    $userAccess->user_id = $post['user_id'];
-                    $userAccess->user_access_type_id = self::USER_ACCESS_TYPE_ID;
-                    $userAccess->table_id = $model->id;
-                    $userAccess->is_leader = 1;
-                    $userAccess->save();
                 }
             }
         } else {
@@ -261,20 +275,26 @@ class Department extends \yii\db\ActiveRecord
         if (!($model->validate())) {
             $errors[] = $model->errors;
         }
+
+
+        /* update User Access */
+        if (isset($post['user_id'])) {
+            $userAccessUser = User::findOne($post['user_id']);
+            if (isset($userAccessUser)) {
+                if (!(UserAccess::changeLeader($model->id, self::USER_ACCESS_TYPE_ID, $userAccessUser->id))) {
+                    $errors = ['user_id' => _e('Error occured on updating UserAccess')];
+                } else {
+                    $model->user_id = $post['user_id'];
+                }
+            }
+        }
+        /* User Access */
+
+
+
         $has_error = Translate::checkingUpdate($post);
         if ($has_error['status']) {
             if ($model->save()) {
-                /* update User Access */
-                if (isset($post['user_id'])) {
-                    $userAccessUser = User::findOne($post['user_id']);
-                    if (isset($userAccessUser)) {
-                        if (!(UserAccess::changeLeader($model->id, self::USER_ACCESS_TYPE_ID, $userAccessUser->id))) {
-                            $errors = ['user_id' => _e('Error occured on updating UserAccess')];
-                        }
-                    }
-                }
-                /* User Access */
-
                 if (isset($post['name'])) {
                     if (isset($post['description'])) {
                         Translate::updateTranslate($post['name'], $model->tableName(), $model->id, $post['description']);
@@ -299,9 +319,9 @@ class Department extends \yii\db\ActiveRecord
     public function beforeSave($insert)
     {
         if ($insert) {
-            $this->created_by = current_user_id();
+            $this->created_by = Current_user_id();
         } else {
-            $this->updated_by = current_user_id();
+            $this->updated_by = Current_user_id();
         }
         return parent::beforeSave($insert);
     }
@@ -316,40 +336,16 @@ class Department extends \yii\db\ActiveRecord
     public function typesArray($key = null)
     {
         $array = [
-            [
-                "id" => self::TYPE_DEPARTMENT,
-                "type" => 'TYPE_DEPARTMENT',
-                "name" => 'BOSHQARMA',
-            ],
-            [
-                "id" => self::TYPE_CENTER,
-                "type" => 'TYPE_CENTER',
-                "name" => 'MARKAZ'
-            ],
-            [
-                "id" => self::TYPE_CHAIR,
-                "type" => 'TYPE_CHAIR',
-                "name" => 'HR',
-            ],
-            [
-                "id" => self::TYPE_DEANERY,
-                "type" => 'TYPE_DEANERY',
-                "name" => 'DEKANAT'
-            ],
-            [
-                "id" => self::TYPE_RECTORATE,
-                "type" => 'TYPE_RECTORATE',
-                "name" => 'REKTORAT'
-            ],
-            [
-                "id" => self::TYPE_REGISTRATOR_OFFICE,
-                "type" => 'TYPE_REGISTRATOR_OFFICE',
-                "name" => 'QABUL'
-            ],
+            self::TYPE_DEPARTMENT => 'TYPE_DEPARTMENT',
+            self::TYPE_CENTER => 'TYPE_CENTER',
+            self::TYPE_CHAIR => 'TYPE_CHAIR',
+            self::TYPE_DEANERY => 'TYPE_DEANERY',
+            self::TYPE_RECTORATE => 'TYPE_RECTORATE',
+            self::TYPE_REGISTRATOR_OFFICE => 'TYPE_REGISTRATOR_OFFICE',
         ];
 
-        if (isset($array[$key-1])) {
-            return $array[$key-1];
+        if (isset($array[$key])) {
+            return $array[$key];
         }
 
         return $array;

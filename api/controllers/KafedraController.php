@@ -24,6 +24,8 @@ class KafedraController extends ApiActiveController
     const USER_ACCESS_TYPE_ID = 2;
     const ROLE = 'mudir';
 
+
+
     public function actionUserAccess($lang)
     {
         $post = Yii::$app->request->post();
@@ -39,10 +41,13 @@ class KafedraController extends ApiActiveController
         $model = new Kafedra();
 
         $query = $model->find()
+            ->with(['infoRelation'])
             ->andWhere([$this->table_name . '.is_deleted' => 0])
             ->leftJoin("translate tr", "tr.model_id = $this->table_name.id and tr.table_name = '$this->table_name'")
             ->groupBy($this->table_name . '.id')
             ->andFilterWhere(['like', 'tr.name', Yii::$app->request->get('query')]);
+
+
 
         if (!isRole('tutor')) {
 
@@ -50,27 +55,29 @@ class KafedraController extends ApiActiveController
             $t = $this->isSelf(Faculty::USER_ACCESS_TYPE_ID);
             if ($t['status'] == 1) {
                 $query->andFilterWhere([
-                    'in', 'faculty_id', $t['UserAccess']
+                    'faculty_id' => $t['UserAccess']->table_id
                 ]);
             } elseif ($t['status'] == 2) {
                 $query->andFilterWhere([
-                    'kafedra.is_deleted' => -1
+                    'faculty_id' => -1
                 ]);
             }
             /*  is Self  */
 
-            if (isRole('mudir')) {
-                $k = $this->isSelf(Kafedra::USER_ACCESS_TYPE_ID);
-                if ($k['status'] == 1 && !isRole("dean")) {
-                    $query->where([
-                        'in', $this->table_name . '.id', $k['UserAccess']
-                    ])->all();
-                } elseif ($k['status'] == 2 && !isRole("dean")) {
-                    $query->andFilterWhere([
-                        'kafedra.is_deleted' => -1
-                    ]);
-                }
+            /*  is Self  */
+            $k = $this->isSelf(Kafedra::USER_ACCESS_TYPE_ID);
+            if ($k['status'] == 1 && !isRole("dean")) {
+
+                // return $k['UserAccess']->table_id;
+                $query->where([
+                    'in', $this->table_name . '.id', $k['UserAccess']->table_id
+                ])->all();
+            } elseif ($k['status'] == 2) {
+                $query->andFilterWhere([
+                    'faculty_id' => -1
+                ]);
             }
+            /*  is Self  */
         }
 
         // filter
@@ -84,11 +91,41 @@ class KafedraController extends ApiActiveController
         return $this->response(1, _e('Success'), $data);
     }
 
+    public function actionKpi($lang)
+    {
+        $model = new Kafedra();
+
+        $query = $model->find()
+            ->with(['infoRelation'])
+            ->andWhere([$model->tableName() . '.is_deleted' => 0])
+            ->leftJoin("translate tr", "tr.model_id = $this->table_name.id and tr.table_name = '$this->table_name'")
+            ->andFilterWhere(['like', 'tr.name', Yii::$app->request->get('query')]);
+
+
+        if (!(isRole('admin') || isRole('monitoring') || isRole('rector') || isRole('comission'))) {
+            $query->andWhere(['user_id' => current_user_id()]);
+        }
+
+        // filter
+        $query = $this->filterAll($query, $model);
+
+        // sort
+        $query = $this->sort($query);
+
+        // data
+
+        // dd([$query->createCommand()->rawSql, $t['table_ids']]);
+        $data =  $this->getData($query);
+        return $this->response(1, _e('Success'), $data);
+    }
+
+
     public function actionCreate($lang)
     {
         $model = new Kafedra();
         $post = Yii::$app->request->post();
         $this->load($model, $post);
+
         $result = Kafedra::createItem($model, $post);
         if (!is_array($result)) {
             return $this->response(1, _e($this->controller_name . ' successfully created.'), $model, null, ResponseStatus::CREATED);
@@ -110,7 +147,6 @@ class KafedraController extends ApiActiveController
 
         $post = Yii::$app->request->post();
         $this->load($model, $post);
-//        dd($model);
         $result = Kafedra::updateItem($model, $post);
         if (!is_array($result)) {
             return $this->response(1, _e($this->controller_name . ' successfully updated.'), $model, null, ResponseStatus::OK);
@@ -135,9 +171,11 @@ class KafedraController extends ApiActiveController
         $model = Kafedra::find()
             ->andWhere(['id' => $id, 'is_deleted' => 0])
             ->one();
+
         if (!$model) {
             return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
         }
+
         // remove model
         if ($model) {
             // Translate::deleteTranslate($this->table_name, $model->id);

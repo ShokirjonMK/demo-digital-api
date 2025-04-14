@@ -13,6 +13,7 @@ namespace common\models;
  */
 class SubjectTopicInfo extends \base\libs\RedisDB
 {
+
     /**
      * Table name
      *

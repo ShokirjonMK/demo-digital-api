@@ -43,7 +43,7 @@ class ParentUser extends CommonUser
             [['email'], 'unique'],
             [['email'], 'email'],
             [['password_reset_token'], 'unique'],
-//            [['avatar'], 'file', 'skipOnEmpty' => false, 'extensions' => 'png, jpg', 'maxSize' => $this->avatarMaxSize],
+            [['avatar'], 'file', 'skipOnEmpty' => true, 'extensions' => 'png, jpg', 'maxSize' => $this->avatarMaxSize],
             [['deleted'], 'default', 'value' => 0],
             [['template', 'layout', 'view'], 'default', 'value' => ''],
         ];

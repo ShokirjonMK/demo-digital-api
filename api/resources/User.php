@@ -2,37 +2,29 @@
 
 namespace api\resources;
 
+use api\components\TurniketMK;
 use common\models\AuthAssignment;
-use common\models\model\AcademicDegree;
 use common\models\model\Area;
+use common\models\model\Attend;
 use common\models\model\Citizenship;
 use common\models\model\Countries;
-use common\models\model\Degree;
-use common\models\model\DegreeInfo;
-use common\models\model\DiplomaType;
-use common\models\model\Group;
-use common\models\model\Languages;
-use common\models\model\LoadRate;
-use common\models\model\Nationality;
-use common\models\model\Partiya;
-use common\models\model\Student;
-use common\models\model\SubjectCategory;
-use common\models\model\SubjectSemestr;
 use common\models\model\TeacherAccess;
 use common\models\model\PasswordEncrypts;
-use common\models\model\TimetableDate;
-use common\models\Subject;
 use Yii;
 //use api\resources\Profile;
 use common\models\model\Profile;
 use common\models\model\EncryptPass;
+use common\models\model\ExamStudent;
 use common\models\model\Faculty;
 use common\models\model\Kafedra;
 use common\models\model\Keys;
 use common\models\model\KpiMark;
 use common\models\model\LoginHistory;
+use common\models\model\Nationality;
 use common\models\model\Oferta;
 use common\models\model\Region;
+use common\models\model\TimeTable;
+use common\models\model\Turniket;
 use common\models\model\UserAccess;
 use common\models\model\UserAccessType;
 use common\models\User as CommonUser;
@@ -44,28 +36,15 @@ class User extends CommonUser
 {
     use ResourceTrait;
 
-    const FACULTY = 1;
-    const KAFEDRA = 2;
-    const DEPARTMENT = 3;
-
-    const UPLOADS_FOLDER = 'uploads/user-images/';
+    const UPLOADS_FOLDER = 'user-images/';
     const PASSWORD_CHANED = 1;
     const PASSWORD_NO_CHANED = 0;
-     const UPLOADS_FOLDER_PASSPORT = 'uploads/user-passport/';
-     const UPLOADS_FOLDER_ALL_FILE = 'uploads/user-all-file/';
+    // const UPLOADS_FOLDER_PASSPORT = 'uploads/user-passport/';
 
     public $avatar;
     public $passport_file;
-    public $all_file;
-
-    public $excel;
-
-
-    public $password;
-    public $avatarMaxSize = 1024 * 1024 * 2; // 200 Kb
+    public $avatarMaxSize = 1024 * 200; // 200 Kb
     public $passportFileMaxSize = 1024 * 1024 * 5; // 5 Mb
-    public $allFileMaxSize = 1024 * 1024 * 5; // 5 Mb
-
 
     public function behaviors()
     {
@@ -84,26 +63,19 @@ class User extends CommonUser
     public function rules()
     {
         return [
-            // [['username', 'email', 'status', 'password_hash'], 'required'],
-            [['username', 'status', 'password_hash'], 'required'],
+            [['username', 'email', 'status', 'password_hash'], 'required'],
             [['status'], 'integer'],
             [['username'], 'unique'],
             [['email'], 'unique'],
             [['email'], 'email'],
-            ['password','string', 'min'=>4, 'max'=>50],
-            [['attach_role', 'position'],'string', 'max'=>255],
             [['password_reset_token'], 'unique'],
-
             [['avatar'], 'file', 'skipOnEmpty' => true, 'extensions' => 'png, jpg', 'maxSize' => $this->avatarMaxSize],
             [['passport_file'], 'file', 'skipOnEmpty' => true, 'extensions' => 'pdf,doc,docx,png, jpg', 'maxSize' => $this->passportFileMaxSize],
-            [['all_file'], 'file', 'skipOnEmpty' => true, 'extensions' => 'pdf,doc,docx,png, jpg', 'maxSize' => $this->allFileMaxSize],
-
-            [['excel'], 'file', 'skipOnEmpty' => true, 'extensions' => 'xlsx'],
-
             [['deleted'], 'default', 'value' => 0],
             [['template', 'layout', 'view'], 'default', 'value' => ''],
-            [['is_changed', 'updated_by','last_seen_time' , 'change_password_type'], 'integer'],
+            [['is_changed'], 'integer'],
             ['is_changed', 'in', 'range' => [self::PASSWORD_CHANED, self::PASSWORD_NO_CHANED]],
+
         ];
     }
 
@@ -135,8 +107,6 @@ class User extends CommonUser
             // 'passport_file' => function ($model) {
             //     return $model->profile->passport_file ?? '';
             // },
-            'last_seen_time',
-            'position',
             'email',
             'status',
             // 'deleted'
@@ -151,56 +121,53 @@ class User extends CommonUser
      *
      * @return array
      */
-
     public function extraFields()
     {
         $extraFields = [
+            'created_at',
+            'updated_at',
             'profile',
             'userAccess',
-            'teacherAccess',
-            'allTeacherAccess',
-            'isTeacherAccess',
             'department',
             'departmentName',
             'kafedraName',
-            'FacultyName',
+            'facultyName',
+            'facultyNameViaKafedra',
             'here',
 
-            'academikDegree',
-            'degree',
-            'diplomaType',
-            'degreeInfo',
-            'partiya',
-            'citizenship',
-            'nationality',
+            'roles',
+            'rolesAll',
 
-            'userAccessKafedra',
+            'kpiBall',
+            'kpiBall1',
+            'kpiMark',
+
+            'turniket',
+            'turniketDate',
+            'goInTime',
+            'oferta',
+            'ofertaAll',
+            'ofertaIsComformed',
+
             'country',
             'region',
             'area',
             'permanentCountry',
             'permanentRegion',
             'permanentArea',
+            'nationality',
+            'citizenship',
 
-            'roles',
-            'rolesAll',
-
-            'kpiBall',
-            'kpiMark',
-
-
-            'oferta',
-            'ofertaIsComformed',
-            'student',
+            'attendedCount',
+            'timeTables',
+            'timeTablesCount',
 
 
-
-            'role',
             'loginHistory',
             'lastIn',
-            'tutorGroups',
+            'password',
+            'usernamePass',
 
-            'decryptUser',
             'updatedBy',
             'createdBy',
 
@@ -211,39 +178,158 @@ class User extends CommonUser
         return $extraFields;
     }
 
-
-
-
-
-    public function getDecryptUser() {
-        if (isRole('admin') || isRole('edu_admin')) {
-            $data = new Password();
-            $data = $data->decryptThisUser($this->id);
-            return $data['password'];
-        } else {
-            return "***** :( *****";
-        }
+    public function getUsernamePass()
+    {
+        $data = new Password();
+        $data = $data->decryptThisUser($this->id);
+        return $data;
     }
 
-    public function getTutorGroups()
+    public function getNotCheckedCountc()
     {
-        $student = Student::find()
-            ->select('group_id')
-            ->where(['is_deleted' => 0, 'tutor_id' => $this->id])
-            ->groupBy('group_id');
 
-        if (isRole('dean')) {
-            $dean = get_dean();
-            $student = $student->andWhere(['faculty_id' => $dean->id]);
-        } elseif (isRole('dean_deputy')) {
-            $dean = get_dean_deputy();
-            $student = $student->andWhere(['faculty_id' => $dean->id]);
-        }
+        // Initialize the model and get the table name
+        $model = new ExamStudent();
+        $tableName = $model->tableName();
 
-        return Group::find()
-            ->where(['status' => 1, 'is_deleted' => 0])
-            ->andWhere(['in' , 'id' , $student])
-            ->all();
+        // Construct the query
+        $query = $model->find()
+            ->select([
+                'SUM(CASE WHEN exam_student.is_checked_full = 0 AND exam_student.act <> 1 AND exam_student.has_answer = 1 THEN 1 ELSE 0 END) AS not_checked',
+                'SUM(CASE WHEN exam_student.act = 1 THEN 1 ELSE 0 END) AS akt_count',
+                'SUM(CASE WHEN exam_student.has_answer = 0 THEN 1 ELSE 0 END) AS no_answer',
+                'COUNT(*) AS all'
+            ])
+            ->leftJoin('teacher_access', 'exam_student.teacher_access_id = teacher_access.id')
+            ->leftJoin('user_access', 'teacher_access.user_id = user_access.user_id AND user_access.user_access_type_id = 2')
+            ->leftJoin('profile', 'profile.user_id = teacher_access.user_id')
+            ->leftJoin('subject', 'subject.id = exam_student.subject_id')
+            ->leftJoin('exam', 'exam.id = exam_student.exam_id')
+            ->where([
+                'teacher_access.user_id' => current_user_id(),
+            ])
+            ->andWhere([$tableName . '.is_deleted' => 0])
+            ->andWhere(['exam.archived' => 0])
+            // ->groupBy(['profile.user_id', 'profile.last_name', 'profile.middle_name', 'profile.first_name'])
+        ;
+
+        // Execute the query and get the results
+        return $query->all();
+    }
+
+    public function getNotCheckedCounta()
+    {
+        $model = new ExamStudent();
+
+        $query = $model->find()
+            ->andWhere([$model->tableName() . '.is_deleted' => 0])
+            ->leftJoin("exam", "exam.id = $this->table_name.exam_id");
+
+        $query = $query->andWhere([
+            'in',
+            $this->table_name . '.teacher_access_id',
+            $this->teacher_access()
+        ]);
+
+        $query = $query->andWhere([$this->table_name . '.exam_student.is_checked_full' => 0]);
+
+        $query = $query->andWhere([$this->table_name . '.exam_student.act' => 1]);
+        $query = $query->andWhere([$this->table_name . '.exam_student.has_answer' => 1]);
+
+        $query = $query->andWhere(['exam.archived' => 0]);
+
+        return $query->count();
+    }
+
+    public function getNotCheckedCount($user_id)
+    {
+        $model = new ExamStudent();
+        $tableName = $model->tableName();
+
+        // Construct the query
+        $query = $model->find()
+            ->andWhere([$tableName . '.is_deleted' => 0])
+            ->leftJoin("exam", "exam.id = $tableName.exam_id")
+            ->andWhere([
+                'in',
+                $tableName . '.teacher_access_id',
+                $this->teacher_access(1, ['id'], $user_id)
+            ])
+            ->andWhere([$tableName . '.act' => 0])
+            ->andWhere([
+                $tableName . '.is_checked_full' => 0,
+
+                $tableName . '.has_answer' => 1,
+                'exam.archived' => 0
+            ]);
+
+        // return $query->createCommand()->getRawSql();
+        return $query->count();
+    }
+
+
+    public function getPassword()
+    {
+        return $this->usernamePass['password'];
+    }
+
+    // getLoginHistory
+    // public function getLoginHistory()
+    // {
+    //     return $this->hasMany(LoginHistory::className(), ['user_id' => 'id']);
+    // }
+    public function getLoginHistory()
+    {
+        return $this->hasMany(LoginHistory::className(), ['user_id' => 'id'])
+            ->orderBy(['id' => SORT_DESC])->limit(10);
+    }
+
+    public function getTurniket()
+    {
+        return $this->hasMany(Turniket::className(), ['user_id' => 'id'])
+            ->orderBy(['id' => SORT_DESC])->limit(10);
+    }
+
+    public function getTurniketDate()
+    {
+        $date = Yii::$app->request->get('date') ? date('Y-m-d', strtotime(Yii::$app->request->get('date'))) : date('Y-m-d');
+
+        return $this->hasOne(Turniket::className(), ['user_id' => 'id'])
+            ->andWhere(['date' => $date]);
+    }
+
+    public function getGoInTime1()
+    {
+        $date = Yii::$app->request->get('date') ? date('Y-m-d', strtotime(Yii::$app->request->get('date'))) : date('Y-m-d');
+
+        return date('Y-m-d H:i:s', strtotime($this->hasOne(Turniket::className(), ['user_id' => 'id'])
+            ->andWhere(['date' => $date])->one()->go_in_time));
+    }
+
+    public function getGoInTime()
+    {
+        $date = Yii::$app->request->get('date') ? date('Y-m-d', strtotime(Yii::$app->request->get('date'))) : date('Y-m-d');
+
+        $timestamp = Turniket::find()
+            ->select('go_in_time')
+            ->where(['user_id' => $this->id, 'date' => $date])
+            ->scalar();
+
+        return $timestamp ? date('Y-m-d H:i:s', $timestamp) : null;
+    }
+
+
+    public function getGoOutTime()
+    {
+        $date = Yii::$app->request->get('date') ? date('Y-m-d', strtotime(Yii::$app->request->get('date'))) : date('Y-m-d');
+
+        return date('Y-m-d H:i:s', strtotime($this->hasOne(Turniket::className(), ['user_id' => 'id'])
+            ->andWhere(['date' => $date])->one()->go_out_time));
+    }
+
+    public function getLastIn()
+    {
+        return $this->hasOne(LoginHistory::className(), ['user_id' => 'id'])->onCondition(['log_in_out' => LoginHistory::LOGIN])->orderBy(['id' => SORT_DESC]);
     }
 
     public function getPermissionsNoStudent()
@@ -272,15 +358,15 @@ class User extends CommonUser
         if ($this->rolesAll) {
             $result = [];
             foreach ($this->rolesAll as $roleOne) {
-                if ($roleOne->item_name == 'student') {
-                    $authItem = AuthItem::find()->where(['name' => $roleOne->item_name])->one();
-                    $perms = $authItem->permissions;
-                    if ($perms && is_array($perms)) {
-                        foreach ($perms as $row) {
-                            $result[] = $row['name'];
-                        }
+                // if ($roleOne->item_name == 'student') {
+                $authItem = AuthItem::find()->where(['name' => $roleOne->item_name])->one();
+                $perms = $authItem->permissions;
+                if ($perms && is_array($perms)) {
+                    foreach ($perms as $row) {
+                        $result[] = $row['name'];
                     }
                 }
+                // }
             }
             return $result;
         } else {
@@ -338,179 +424,19 @@ class User extends CommonUser
         }
     }
 
-    public static function attachRole($role , $user_id = null) {
-        if (is_null($user_id)) {
-            $user_id = current_user_id();
-        }
-        if (is_null($role)) {
-            $role = null;
-        }
-        $user = User::findOne($user_id);
-        $user->attach_role = $role;
-        $user->save(false);
-    }
-
-    public function getLoginRolesNoStudent($role = null) {
-        if (is_null($role)) {
-            $getRole = '';
-        } else {
-            $getRole = $role;
-        }
-//            if (isset($role)) {
-//                $getRole = $role;
-//            } else {
-//                $getRole = '';
-//            }
-
-//            dd($authItems);
-
-        if (isset($role)) {
-            $authItems = AuthAssignment::find()->where([
-                'user_id' => $this->id
-            ])->andFilterWhere(['item_name' => $getRole])->one();
-            if (!isset($authItems)) {
-                $authItems = AuthAssignment::find()->where([
-                    'user_id' => $this->id
-                ])->one();
-            }
-        } else {
-            $authItems = AuthAssignment::find()->where([
-                'user_id' => $this->id
-            ])->one();
-        }
-
-        $result = [];
-        if ($authItems['item_name'] != 'student') {
-            $result['active_role'] = $authItems['item_name'];
-            $authItemOne = AuthItem::find()->where(['name' => $result['active_role']])->one();
-            $perms = $authItemOne->permissions;
-            if ($perms && is_array($perms)) {
-                foreach ($perms as $row) {
-                    $result['permission'][] = $row['name'];
-                }
-            } else {
-                $result['permission'] = [];
-            }
-        }
-
-        $allRoles = AuthAssignment::find()->where(['user_id' => $this->id])->all();
-        foreach ($allRoles as $allRole) {
-            if ($allRole['item_name'] != 'student') {
-                $result['all_roles'][] = $allRole['item_name'];
-            }
-        }
-
-        return $result;
-    }
-
-    public function getRolesNoStudent($role) {
-        if (isset($role)) {
-            $getRole = $role;
-        } else {
-            $getRole = '';
-        }
-
-        if (isset($role)) {
-            $authItems = AuthAssignment::find()->where([
-                'user_id' => $this->id
-            ])->andFilterWhere(['item_name' => $getRole])->one();
-            if (!isset($authItems)) {
-                $authItems = AuthAssignment::find()->where([
-                    'user_id' => $this->id
-                ])->one();
-            }
-        } else {
-            $authItems = AuthAssignment::find()->where([
-                'user_id' => $this->id
-            ])->one();
-        }
-
-        $result = [];
-        if ($authItems['item_name'] != 'student') {
-            $result['active_role'] = $authItems['item_name'];
-            $authItemOne = AuthItem::find()->where(['name' => $result['active_role']])->one();
-            $perms = $authItemOne->permissions;
-            if ($perms && is_array($perms)) {
-                foreach ($perms as $row) {
-                    $result['permission'][] = $row['name'];
-                }
-            } else {
-                $result['permission'] = [];
-            }
-        }
-
-        $allRoles = AuthAssignment::find()->where(['user_id' => $this->id])->all();
-        foreach ($allRoles as $allRole) {
-            if ($allRole['item_name'] != 'student') {
-                $result['all_roles'][] = $allRole['item_name'];
-            }
-        }
-
-        return $result;
-    }
-
-    public function getRolesNoStudent2($role)
+    public function getRolesNoStudent()
     {
-        if ($this->roleItem) {
-
-            if (isset($role)) {
-                $getRole = $role;
-            } else {
-                $getRole = '';
-            }
-
-            if (isset($role)) {
-                $authItems = AuthAssignment::find()->where([
-                    'user_id' => $this->id
-                ])->andFilterWhere(['item_name' => $getRole])->one();
-                if (!isset($authItems)) {
-                    $authItems = AuthAssignment::find()->where([
-                        'user_id' => $this->id
-                    ])->one();
-                }
-            } else {
-                $authItems = AuthAssignment::find()->where([
-                    'user_id' => $this->id
-                ])->one();
-            }
-
-            $result = [];
-            if ($authItems['item_name'] != 'student') {
-                $result['active_role'] = $authItems['item_name'];
-                $authItemOne = AuthItem::find()->where(['name' => $result['active_role']])->one();
-                $perms = $authItemOne->permissions;
-                if ($perms && is_array($perms)) {
-                    foreach ($perms as $row) {
-                        $result['permission'][] = $row['name'];
-                    }
-                } else {
-                    $result['permission'] = [];
-                }
-            }
-
-            $allRoles = AuthAssignment::find()->where(['user_id' => $this->id])->all();
-            foreach ($allRoles as $allRole) {
-                if ($allRole['item_name'] != 'student') {
-                    $result['all_roles'][] = $allRole['item_name'];
-                }
-            }
-
-            return $result;
-        } else {
-            return [];
-        }
-    }
-
-    public function getIsRoleStudent() {
         if ($this->roleItem) {
             $authItems = AuthAssignment::find()->where(['user_id' => $this->id])->all();
             $result = [];
             foreach ($authItems as $authItem) {
-                if ($authItem['item_name'] == 'student') {
-                    return true;
+                if ($authItem['item_name'] != 'student') {
+                    $result[] = $authItem['item_name'];
                 }
             }
-            return false;
+            return $result;
+        } else {
+            return [];
         }
     }
 
@@ -530,10 +456,117 @@ class User extends CommonUser
         }
     }
 
-    // public function getKpiBall()
-    // {
-    //     return $this->hasMany(KpiMark::className(), ['user_id' => 'id'])->andWhere(['archived' => 0, 'is_deleted' => 0])->sum('ball');
-    // }
+    public function getAttendedTEST()
+    {
+        if (!empty($_GET['date'])) {
+            $date = date("Y-m-d", strtotime(Yii::$app->request->get('date')));
+            $week_id = date('N', strtotime($date));
+
+
+            return Attend::find()
+                ->where(['in' . 'time_table', TimeTable::find()
+                    ->select('id')
+                    ->andWhere([
+                        'teacher_user_id' => $this->id,
+                        'archived' => 0,
+                        'is_deleted' => 0,
+                        'week_id' => $week_id,
+                    ])])
+                ->andWhere(['date' => $date])
+                ->count();
+        }
+        return Attend::find()
+            ->where(['in' . 'time_table', TimeTable::find()
+                ->select('id')
+                ->andWhere([
+                    'teacher_user_id' => $this->id,
+                    'archived' => 0,
+                    'is_deleted' => 0,
+                ])])
+            ->count();
+    }
+
+    public function getAttendedCountEski()
+    {
+        $query = Attend::find()
+            ->innerJoinWith('time_table', false)
+            ->andWhere([
+                'time_table.teacher_user_id' => $this->id,
+                'time_table.archived' => 0,
+                'time_table.is_deleted' => 0,
+            ]);
+
+        if (!empty($_GET['date'])) {
+            $date = date("Y-m-d", strtotime(Yii::$app->request->get('date')));
+            $week_id = date('N', strtotime($date));
+
+            $query->andWhere([
+                'date' => $date,
+                'week_id' => $week_id,
+            ]);
+        }
+
+        return $query->count();
+    }
+    public function getAttendedCount()
+    {
+        $query = Attend::find()
+            ->joinWith('timeTable') // Use joinWith instead of innerJoinWith
+            ->andWhere([
+                'time_table.teacher_user_id' => $this->id,
+                'time_table.archived' => 0,
+                'time_table.is_deleted' => 0,
+            ]);
+
+        if (!empty($_GET['date'])) {
+            $date = date("Y-m-d", strtotime(Yii::$app->request->get('date')));
+            $week_id = date('N', strtotime($date));
+
+            $query->andWhere([
+                'date' => $date,
+                'time_table.week_id' => $week_id,
+            ]);
+        }
+
+        return $query->count();
+    }
+
+
+
+    public function getTimeTables()
+    {
+        if (!empty($_GET['date'])) {
+            $date = date("Y-m-d", strtotime(Yii::$app->request->get('date')));
+            $week_id = date('N', strtotime($date));
+
+            return $this->hasMany(TimeTable::className(), ['teacher_user_id' => 'id'])
+                ->andWhere([
+                    'archived' => 0,
+                    'is_deleted' => 0,
+                    'week_id' => $week_id,
+                ]);
+        }
+        return $this->hasMany(TimeTable::className(), ['teacher_user_id' => 'id'])
+            ->andWhere([
+                'archived' => 0,
+                'is_deleted' => 0,
+            ]);
+    }
+
+    public function getTimeTablesCount()
+    {
+        return count($this->timeTables);
+    }
+
+
+    public function getKpiBall()
+    {
+        return $this->hasMany(KpiMark::className(), ['user_id' => 'id'])->andWhere(['archived' => 0, 'type' => 1, 'is_deleted' => 0])->sum('ball');
+    }
+    public function getKpiBall1()
+    {
+        return $this->hasMany(KpiMark::className(), ['user_id' => 'id'])->andWhere(['archived' => 0, 'type' => 1, 'is_deleted' => 0])->sum('ball_in');
+    }
 
 
     // public function getKpiBall()
@@ -548,52 +581,38 @@ class User extends CommonUser
 
     public function getOferta()
     {
-        return 1;
-        //    return $this->hasOne(Oferta::className(), ['created_by' => 'id']);
+        return $this->hasOne(Oferta::className(), ['created_by' => 'id'])->onCondition(['archived' => 0, 'is_deleted' => 0]);
     }
 
-    public function getAcademikDegree()
+    public function getOfertaAll()
     {
-        return AcademicDegree::findOne($this->profile->academic_degree_id) ?? null;
+        return $this->hasOne(Oferta::className(), ['created_by' => 'id']);
     }
 
-    public function getDegree()
-    {
-        return Degree::findOne($this->profile->degree_id) ?? null;
-    }
-    public function getDegreeInfo()
-    {
-        return DegreeInfo::findOne($this->profile->degree_id) ?? null;
-    }
-
-    public function getDiplomaType()
-    {
-        return DiplomaType::findOne($this->profile->diploma_type_id) ?? null;
-    }
-
-    public function getPartiya()
-    {
-        return Partiya::findOne($this->profile->partiya_id) ?? null;
-    }
-
-    public function getCitizenship()
-    {
-        return Citizenship::findOne($this->profile->citizenship_id) ?? null;
-    }
+    // getNationality
     public function getNationality()
     {
         return Nationality::findOne($this->profile->nationality_id) ?? null;
     }
 
-    // public function getKpiMark()
-    // {
-    //     return $this->hasMany(KpiMark::className(), ['user_id' => 'id'])->onCondition(['archived' => 0, 'is_deleted' => 0]);
-    // }
+    // Profile Citizenship
+    public function getCitizenship()
+    {
+        return Citizenship::findOne($this->profile->citizenship_id) ?? null;
+    }
+
+
+    public function getKpiMark()
+    {
+        return $this->hasMany(KpiMark::className(), ['user_id' => 'id'])
+            ->onCondition(['archived' => 0, 'type' => 1, 'is_deleted' => 0]);
+        // ->onCondition(['>=', 'created_at', 1725152461]);
+    }
 
     // public function getKafedra()
     // {
     //    return getUserAccess
-    //    return $this->hasOne(Kafedra::className(), ['user_id' => 'id']);
+    //     return $this->hasOne(Kafedra::className(), ['user_id' => 'id']);
     // }
 
     public function getProfile()
@@ -601,18 +620,13 @@ class User extends CommonUser
         return $this->hasOne(Profile::className(), ['user_id' => 'id']);
     }
 
-    public function getStudent()
-    {
-        return $this->hasOne(Student::className(), ['user_id' => 'id']);
-    }
-
     // getCountry
     public function getCountry()
     {
-        return Countries::findOne($this->profile->countries_id) ?? null;
+        return Countries::findOne($this->profile->country_id) ?? null;
     }
 
-
+    // getRegion
     public function getRegion()
     {
         return Region::findOne($this->profile->region_id) ?? null;
@@ -642,73 +656,11 @@ class User extends CommonUser
         return Area::findOne($this->profile->permanent_area_id) ?? null;
     }
 
+
     // UserAccess
     public function getUserAccess()
     {
-        return $this->hasMany(UserAccess::className(), ['user_id' => 'id'])->onCondition(['status' => 1, 'is_deleted' => 0]);
-    }
-
-    public function getTimetable()
-    {
-
-    }
-
-    public function getUserAccessKafedra()
-    {
-        $userAccess = UserAccess::find()
-            ->select('table_id')
-            ->where([
-                'user_id' => $this->id,
-                'user_access_type_id' => self::KAFEDRA,
-                'status' => 1,
-                'is_deleted' => 0,
-            ]);
-        $query = Kafedra::find()
-            ->where([
-                'status' => 1,
-                'is_deleted' => 0
-            ]);
-        $query->andFilterWhere(['in' , 'id' , $userAccess]);
-        return $query->all();
-        return $this->hasMany(UserAccess::className(), ['user_id' => 'id'])->onCondition(['status' => 1, 'is_deleted' => 0]);
-    }
-
-    public function getTeacherAccess()
-    {
-        return $this->hasMany(TeacherAccess ::className(), ['user_id' => 'id'])->onCondition(['status' => 1, 'is_deleted' => 0]);
-    }
-
-    public function getAllTeacherAccess()
-    {
-        return $this->hasMany(TeacherAccess ::className(), ['user_id' => 'id']);
-    }
-
-    public function getIsTeacherAccess()
-    {
-        $data = TeacherAccess::find()
-            ->where([
-                'user_id' => $this->id,
-                'status' => 1,
-                'is_deleted' => 0
-            ])
-            ->all();
-//        $data = $this->hasOne(TeacherAccess ::className(), ['id' => 'user_id'])->onCondition(['status' => 1, 'is_deleted' => 0]);
-        if ($data != null) {
-            return 1;
-        }
-        return 0;
-    }
-
-    // getLoginHistory
-    public function getLoginHistory()
-    {
-        return $this->hasMany(LoginHistory::className(), ['user_id' => 'id']);
-    }
-
-    // getLoginHistory
-    public function getLastIn()
-    {
-        return $this->hasOne(LoginHistory::className(), ['user_id' => 'id'])->onCondition(['log_in_out' => LoginHistory::LOGIN])->orderBy(['id' => SORT_DESC]);
+        return $this->hasMany(UserAccess::className(), ['user_id' => 'id']);
     }
 
     // UserAccess
@@ -735,16 +687,28 @@ class User extends CommonUser
     // KafedraName
     public function getKafedraName()
     {
-        $userAccess = UserAccess::find()->where(['user_id' => $this->id, 'user_access_type_id' => 2])->with('kafedra')->one();
-
+        $userAccess = UserAccess::find()->where(['user_id' => $this->id, 'user_access_type_id' => 2])->one();
         return $userAccess->kafedra->translate->name ?? null;
     }
+
+    // KafedraId
+    public static function getKafedraId($user_id)
+    {
+        $userAccess = UserAccess::find()->where(['user_id' => $user_id, 'user_access_type_id' => 2])->one();
+        return $userAccess->kafedra->id ?? null;
+    }
+
     // FacultyName
     public function getFacultyName()
     {
-        $userAccess = UserAccess::find()->where(['user_id' => $this->id, 'user_access_type_id' => 1])->with('faculty')->one();
+        $userAccess = UserAccess::find()->where(['user_id' => $this->id, 'user_access_type_id' => 1])->one();
 
         return $userAccess->faculty->translate->name ?? null;
+    }
+
+    public function getFacultyNameViaKafedra()
+    {
+        return $this->kafedra->faculty->translate->name ?? null;
     }
     // Kaferda
     public function getKafedra()
@@ -827,10 +791,8 @@ class User extends CommonUser
             } else {
                 $password = _passwordMK();
             }
-            if (isset($post['email']) && $post['email'] == "") {
-                $model->email = null;
-            }
             $model->password_hash = \Yii::$app->security->generatePasswordHash($password);
+
             $model->auth_key = \Yii::$app->security->generateRandomString(20);
             $model->password_reset_token = null;
             $model->access_token = \Yii::$app->security->generateRandomString();
@@ -842,130 +804,83 @@ class User extends CommonUser
                 $model->savePassword($password, $model->id);
                 //**** */
 
-                if (isRole('dean')) {
-                    $faculty = Faculty::findOne([
-                        'user_id' => current_user_id()
-                    ]);
-                    if (isset($faculty)) {
-                        $userAccess = new UserAccess();
-                        $userAccess->user_id = $model->id;
-                        $userAccess->table_id = $faculty->id;
-                        $userAccess->user_access_type_id = UserAccess::FACULTY;
-                        $userAccess->is_leader = UserAccess::IS_LEADER_FALSE;
-                        if (!$userAccess->save()) {
-                            $errors[] = ['user_access' => [_e('Error saving data.')]];
-                        } else {
-                            $loadRate = new LoadRate();
-                            $loadRate->work_load_id = 1;
-                            $loadRate->work_rate_id = 4;
-                            $loadRate->user_access_id = $userAccess->id;
-                            $loadRate->user_id = $userAccess->user_id;
-                            if (!$loadRate->save()) {
-                                $errors[] = ['load_rate' => [_e('Error saving data.')]];
-                            }
-                        }
-                    }
-                }
+                /** UserAccess */
+                if (isset($post['user_access'])) {
+                    $post['user_access'] = str_replace("'", "", $post['user_access']);
+                    $user_access = json_decode(str_replace("'", "", $post['user_access']));
 
-                if (isRole('mudir')) {
-                    $kafedra = Kafedra::findOne([
-                        'user_id' => current_user_id()
-                    ]);
-                    if (isset($kafedra)) {
-                        $userAccess = new UserAccess();
-                        $userAccess->user_id = $model->id;
-                        $userAccess->table_id = $kafedra->id;
-                        $userAccess->user_access_type_id = UserAccess::KAFEDRA;
-                        $userAccess->is_leader = UserAccess::IS_LEADER_FALSE;
-                        if (!$userAccess->save()) {
-                            $errors[] = ['user_access' => [_e('Error saving data.')]];
-                        } else {
-                            $loadRate = new LoadRate();
-                            $loadRate->work_load_id = 1;
-                            $loadRate->work_rate_id = 4;
-                            $loadRate->user_access_id = $userAccess->id;
-                            $loadRate->user_id = $userAccess->user_id;
-                            if (!$loadRate->save()) {
-                                $errors[] = ['load_rate' => [_e('Error saving data.')]];
+                    foreach ($user_access as $user_access_type_id => $tableIds) {
+
+                        $userAccessType = UserAccessType::findOne($user_access_type_id);
+                        if (isset($userAccessType)) {
+                            foreach ($tableIds as $tableIdandIsLeader) {
+
+                                $tableIdandIsLeaderExplode = explode('-', $tableIdandIsLeader);  // tableId-isLeader
+
+                                if (isset($tableIdandIsLeaderExplode[0]) && isset($tableIdandIsLeaderExplode[1])) {
+                                    $tableId = $userAccessType->table_name::find()->where(['id' => $tableIdandIsLeaderExplode[0]])->one();
+                                    $da['tableId'][] = $tableId;
+                                    if ($tableId && isset($tableId)) {
+                                        $userAccessNew = new UserAccess();
+                                        $userAccessNew->table_id = $tableId->id;
+                                        $userAccessNew->user_access_type_id = $user_access_type_id;
+                                        $userAccessNew->user_id = $model->id;
+                                        $userAccessNew->is_leader = $tableIdandIsLeaderExplode[1];
+                                        $userAccessNew->save(false);
+                                        if ($tableIdandIsLeaderExplode[1]) {
+                                            $tableId->user_id = $model->id;
+                                            $tableId->save(false);
+                                        }
+                                    } else {
+                                        $errors[] = ['table_id' => [_e('Not found')]];
+                                    }
+                                } else {
+                                    $errors[] = ['user_access_type_id' => [_e('Not found')]];
+                                }
                             }
+                        } else {
+                            $errors[] = ['userAccessType' => [_e('Not found')]];
                         }
                     }
                 }
+                /** UserAccess */
 
                 $profile->user_id = $model->id;
 
-                // file saqlash boshqa joyga olindi
+                // avatarni saqlaymiz
+                $model->avatar = UploadedFile::getInstancesByName('avatar');
+                if ($model->avatar) {
+                    $model->avatar = $model->avatar[0];
+                    $avatarUrl = $model->upload();
+                    if ($avatarUrl) {
+                        $profile->image = $avatarUrl;
+                    } else {
+                        $errors[] = $model->errors;
+                    }
+                }
+                // ***
 
-                if (!$profile->save(false)) {
+                // passport file saqlaymiz
+                $model->passport_file = UploadedFile::getInstancesByName('passport_file');
+                if ($model->passport_file) {
+                    $model->passport_file = $model->passport_file[0];
+                    $passportUrl = $model->uploadPassport();
+                    if ($passportUrl) {
+                        $profile->passport_file = $passportUrl;
+                    } else {
+                        $errors[] = $model->errors;
+                    }
+                }
+                // ***
+
+                if (!$profile->save()) {
                     $errors[] = $profile->errors;
                 } else {
-
-                    // avatarni saqlaymiz
-                    $model->avatar = UploadedFile::getInstancesByName('avatar');
-                    if ($model->avatar) {
-                        if ($model->avatar[0]->size <= $profile->avatarMaxSize) {
-                            $model->avatar = $model->avatar[0];
-                            $avatarUrl = $model->upload();
-                            if ($avatarUrl) {
-                                $profile->image = $avatarUrl;
-                            } else {
-                                $errors[] = _e("An error occurred while inserting the image.");
-                            }
-                        } else {
-                            $errors[] = _e("The avatar size must not exceed the given size.");
-                        }
-                    }
-                    // ***
-
-                    // passport file saqlaymiz
-                    $model->passport_file = UploadedFile::getInstancesByName('passport_file');
-                    if ($model->passport_file) {
-                        if ($model->passport_file[0]->size <= $profile->passportFileMaxSize) {
-                            $model->passport_file = $model->passport_file[0];
-                            $passportUrl = $model->uploadPassport();
-                            if ($passportUrl) {
-                                $profile->passport_file = $passportUrl;
-                            } else {
-                                $errors[] = _e("An error occurred while trying to insert a file");
-                            }
-                        } else {
-                            $errors[] = _e("The passport file size must not exceed the given size.");
-                        }
-
-                    }
-                    // ***
-
-                    // All file saqlaymiz
-                    $model->all_file = UploadedFile::getInstancesByName('all_file');
-                    if ($model->all_file) {
-                        $json = [];
-                        foreach ($model->all_file as $file_key => $files) {
-                            $model->all_file = $files[$file_key];
-                            if ($model->all_file->size <= $profile->allFileMaxSize) {
-                                $res[] = $model->all_file;
-                                $AllFileUrl = $model->uploadAllFile();
-                                if ($AllFileUrl) {
-                                    $json[] = $AllFileUrl;
-                                } else {
-                                    $errors[] = _e("An error occurred while trying to insert a file");
-                                }
-                            } else {
-                                $errors[] = _e("The file size must not exceed the given size.");
-                            }
-                        }
-                        if (count($json)>0) {
-                            $profile->all_file = json_encode($json,true);
-                        }
-                    }
-                    // ***
-                    $profile->save(false);
-
                     // role ni userga assign qilish
                     $auth = Yii::$app->authManager;
-
-                    $roles = json_decode(str_replace("'", "", $post['role']), true);
-
+                    $roles = json_decode(str_replace("'", "", $post['role']));
                     if (is_array($roles)) {
+
                         foreach ($roles as $role) {
                             $authorRole = $auth->getRole($role);
                             if ($authorRole) {
@@ -1017,7 +932,7 @@ class User extends CommonUser
 
         if (count($errors) == 0) {
 
-            if ($model->save(false)) {
+            if ($model->save()) {
                 // avatarni saqlaymiz
                 $model->avatar = UploadedFile::getInstancesByName('avatar');
                 if ($model->avatar) {
@@ -1044,7 +959,7 @@ class User extends CommonUser
                 }
                 // ***
 
-                if (!$profile->save(false)) {
+                if (!$profile->save()) {
                     $errors[] = $profile->errors;
                 }
             } else {
@@ -1068,6 +983,11 @@ class User extends CommonUser
 
         if (!$post) {
             $errors[] = ['all' => [_e('Please send data.')]];
+        }
+        if (isset($post['is_deleted'])) {
+            if ($post['is_deleted'] == 0) {
+                $model->deleted = 0;
+            }
         }
 
         // role to'gri jo'natilganligini tekshirish
@@ -1096,14 +1016,55 @@ class User extends CommonUser
                         return simplify_errors($errors);
                     }
                     $password = $post['password'];
-                    //**  */parolni shifrlab saqlaymiz */
+                    //**parolni shifrlab saqlaymiz */
                     $model->savePassword($password, $model->id);
                     //**** */
                     $model->password_hash = \Yii::$app->security->generatePasswordHash($password);
                 }
             }
 
-            if ($model->save(false)) {
+            if ($model->save()) {
+
+                /** UserAccess */
+                // if (isset($post['user_access'])) {
+                //     $post['user_access'] = str_replace("'", "", $post['user_access']);
+                //     $user_access = json_decode(str_replace("'", "", $post['user_access']));
+                //     // dd($user_access);
+                //     UserAccess::deleteAll(['user_id' => $model->id]);
+                //     foreach ($user_access as $user_access_type_id => $tableIds) {
+                //         $userAccessType = UserAccessType::findOne($user_access_type_id);
+                //         if (isset($userAccessType)) {
+                //             foreach ($tableIds as $tableIdandIsLeader) {
+
+                //                 $tableIdandIsLeaderExplode = explode('-', $tableIdandIsLeader);  // tableId-isLeader
+
+                //                 if (isset($tableIdandIsLeaderExplode[0]) && isset($tableIdandIsLeaderExplode[1])) {
+                //                     $tableId = $userAccessType->table_name::find()->where(['id' => $tableIdandIsLeaderExplode[0]])->one();
+                //                     $da['tableId'][] = $tableId;
+                //                     if ($tableId && isset($tableId)) {
+                //                         $userAccessNew = new UserAccess();
+                //                         $userAccessNew->table_id = $tableId->id;
+                //                         $userAccessNew->user_access_type_id = $user_access_type_id;
+                //                         $userAccessNew->user_id = $model->id;
+                //                         $userAccessNew->is_leader = $tableIdandIsLeaderExplode[1];
+                //                         $userAccessNew->save(false);
+                //                         if ($tableIdandIsLeaderExplode[1]) {
+                //                             $tableId->user_id = $model->id;
+                //                             $tableId->save(false);
+                //                         }
+                //                     } else {
+                //                         $errors[] = ['table_id' => [_e('Not found')]];
+                //                     }
+                //                 } else {
+                //                     $errors[] = ['user_access_type_id' => [_e('Not found')]];
+                //                 }
+                //             }
+                //         } else {
+                //             $errors[] = ['userAccessType' => [_e('Not found')]];
+                //         }
+                //     }
+                // }
+                /** UserAccess */
 
                 // avatarni saqlaymiz
                 $model->avatar = UploadedFile::getInstancesByName('avatar');
@@ -1129,48 +1090,12 @@ class User extends CommonUser
                         $errors[] = $model->errors;
                     }
                 }
-
-//                $model->passport_file = UploadedFile::getInstancesByName('passport_file');
-//                if ($model->passport_file) {
-//                    $model->passport_file = $model->passport_file[0];
-//                    $passportUrl = $model->uploadPassport();
-//                    if ($passportUrl['is_ok']) {
-//                        $profile->passport_file = $passportUrl['data'];
-//                    } else {
-//                        $errors[] = $model->errors;
-//                    }
-//                }
                 // ***
 
-                // All file saqlaymiz
-//                $model->all_file = UploadedFile::getInstancesByName('all_file');
-//                if ($model->all_file) {
-//                    $json = [];
-//                    dd($model->all_file);
-//                    foreach ($model->all_file as $file_key => $files) {
-//                        $model->all_file = $files[$file_key];
-//                        $AllFileUrl = $model->uploadAllFile();
-//                        if ($AllFileUrl) {
-//                            $json[] = $AllFileUrl;
-//                        } else {
-//                            $errors[] = $model->errors;
-//                        }
-//                    }
-//                    if (count($json)>0) {
-//                        $profile->all_file = json_encode($json,true);
-//                    }
-//                }
-//                if (count($json)>0) {
-//                    dd($json);
-//                }
-                // ***
-
-
-
-                if (!$profile->save(false)) {
+                if (!$profile->save()) {
                     $errors[] = $profile->errors;
                 } else {
-                    if (isset($post['role']) && $model->id != current_user_id()) {
+                    if (isset($post['role'])) {
                         $auth = Yii::$app->authManager;
                         $roles = json_decode(str_replace("'", "", $post['role']));
 
@@ -1184,32 +1109,26 @@ class User extends CommonUser
                                         $teacherAccess = json_decode(str_replace("'", "", $post['teacherAccess']));
                                         foreach (TeacherAccess::findAll(['user_id' => $model->id]) as $teacherAccessOne) {
                                             $teacherAccessOne->is_deleted = 1;
-                                            $teacherAccessOne->status = 0;
-                                            $teacherAccessOne->save(false);
+                                            $teacherAccessOne->save();
                                         }
-                                        foreach ($teacherAccess as $subjectSemestrId => $subjectIdsValues) {
-                                            $subjectSemestr = SubjectSemestr::findOne($subjectSemestrId);
-                                            if ($subjectSemestr) {
-                                                if (is_array($subjectIdsValues)) {
-                                                    foreach ($subjectIdsValues as $langId) {
-                                                        $teacherAccessHas = TeacherAccess::findOne([
-                                                            'user_id' => $model->id,
-                                                            'subject_semestr_id' => $subjectSemestrId,
-                                                            'subject_id' => $subjectSemestr->subject_id,
-                                                            'language_id' => $langId,
-                                                        ]);
-                                                        if ($teacherAccessHas) {
-                                                            $teacherAccessHas->is_deleted = 0;
-                                                            $teacherAccessHas->status = 1;
-                                                            $teacherAccessHas->save(false);
-                                                        } else {
-                                                            $teacherAccessNew = new TeacherAccess();
-                                                            $teacherAccessNew->user_id = $model->id;
-                                                            $teacherAccessNew->subject_semestr_id = $subjectSemestrId;
-                                                            $teacherAccessNew->subject_id = $subjectSemestr->subject_id;
-                                                            $teacherAccessNew->language_id = $langId;
-                                                            $teacherAccessNew->save(false);
-                                                        }
+
+                                        foreach ($teacherAccess as $subjectIds => $subjectIdsValues) {
+                                            if (is_array($subjectIdsValues)) {
+                                                foreach ($subjectIdsValues as $langId) {
+                                                    $teacherAccessHas = TeacherAccess::findOne([
+                                                        'user_id' => $model->id,
+                                                        'subject_id' => $subjectIds,
+                                                        'language_id' => $langId,
+                                                    ]);
+                                                    if ($teacherAccessHas) {
+                                                        $teacherAccessHas->is_deleted = 0;
+                                                        $teacherAccessHas->save();
+                                                    } else {
+                                                        $teacherAccessNew = new TeacherAccess();
+                                                        $teacherAccessNew->user_id = $model->id;
+                                                        $teacherAccessNew->subject_id = $subjectIds;
+                                                        $teacherAccessNew->language_id = $langId;
+                                                        $teacherAccessNew->save();
                                                     }
                                                 }
                                             }
@@ -1239,61 +1158,6 @@ class User extends CommonUser
         }
     }
 
-    public static function allFileSave($model, $data, $profile)
-    {
-        $json = [];
-
-        $model->all_file = $data[0];
-        $allFileUrl = $model->uploadAllFile();
-        if ($allFileUrl) {
-            if (isset($profile->all_file))
-            {
-                foreach (json_decode($profile->all_file) as $value) {
-                    array_push($json, $value);
-                }
-            }
-            array_push($json , [$allFileUrl]);
-            return $json;
-        }
-        return false;
-    }
-
-    public static function deleteAllFile($id , $url) {
-        $transaction = Yii::$app->db->beginTransaction();
-        $errors = [];
-
-        $model = User::findOne(['id' => $id, 'deleted' => 0]);
-        if (!$model) {
-            $errors[] = [_e('Data not found.')];
-        }
-        if (count($errors) == 0) {
-            $profileAllFileDeleted = Profile::findOne(['user_id' => $id]);
-            if (isset($profileAllFileDeleted->all_file)) {
-                $allFile = json_decode($profileAllFileDeleted->all_file);
-                foreach ($allFile as $key => $value) {
-                    if ($url == $value[0]->url) {
-                        if (file_exists($url)){
-                            array_splice($allFile , $key ,1);
-                            $profileAllFileDeleted->all_file = json_encode($allFile);
-                            if ($profileAllFileDeleted->save()) {
-                                unlink($url);
-                            } else {
-                                $errors[] = [_e('Error')];
-                            }
-                        }
-                    }
-                }
-            } else {
-                $errors[] = [_e('File not found.')];
-            }
-
-            $transaction->commit();
-            return true;
-        } else {
-            $transaction->rollBack();
-            return simplify_errors($errors);
-        }
-    }
     public static function deleteItem($id)
     {
         $transaction = Yii::$app->db->beginTransaction();
@@ -1306,33 +1170,34 @@ class User extends CommonUser
         if (count($errors) == 0) {
 
             // remove profile image
-//            $filePath = assets_url($model->profile->image);
-//            if(file_exists($filePath)){
-//                unlink($filePath);
-//            }
+            /* $filePath = assets_url($model->profile->image);
+            if(file_exists($filePath)){
+                unlink($filePath);
+            } */
             // remove profile
             $profileDeleted = Profile::findOne(['user_id' => $id]);
             $profileDeleted->is_deleted = 1;
 
-            if (!$profileDeleted->save()) {
+            if (!$profileDeleted->save(false)) {
                 $errors[] = [_e('Error in profile deleting process.')];
             }
-            $userAccess = UserAccess::findAll(['user_id' => $model->id]);
-            if (count($userAccess) > 0) {
-                foreach ($userAccess as $userAccessOne) {
-                    $userAccessOne->is_deleted = 1;
-                    $userAccessOne->save(false);
-                }
+
+            // $userAccess = UserAccess::findAll(['user_id' => $model->id]);
+            // foreach ($userAccess as $userAccessOne) {
+            //     $userAccessOne->is_deleted = 1;
+            //     $userAccessOne->update();
+            // }
+            UserAccess::updateAll(['is_deleted' => 1], ['user_id' => $model->id]);
+            try {
+                TurniketMK::deletePerson($profileDeleted);
+            } catch (\Exception $e) {
+                // skip this step if any error
             }
-            $teacherAccess = TeacherAccess::findAll(['user_id' => $model->id]);
-            if (count($teacherAccess) > 0) {
-                foreach ($teacherAccess as $teacherAccessOne) {
-                    $teacherAccessOne->is_deleted = 1;
-                    $teacherAccessOne->save(false);
-                }
-            }
+
             $model->deleted = 1;
             $model->status = self::STATUS_BANNED;
+
+
             if (!$model->save()) {
                 $errors[] = [_e('Error in user deleting process.')];
             }
@@ -1359,14 +1224,14 @@ class User extends CommonUser
     public function upload()
     {
         if ($this->validate()) {
-            $folder_name = substr(STORAGE_PATH, 0, -1);
-            if (!file_exists(\Yii::getAlias('@api/web'. $folder_name  ."/". self::UPLOADS_FOLDER))) {
-                mkdir(\Yii::getAlias('@api/web'. $folder_name  ."/". self::UPLOADS_FOLDER), 0777, true);
+
+            if (!file_exists(STORAGE_PATH  . self::UPLOADS_FOLDER)) {
+                mkdir(STORAGE_PATH  . self::UPLOADS_FOLDER, 0777, true);
             }
 
             $fileName = $this->id . \Yii::$app->security->generateRandomString(10) . '.' . $this->avatar->extension;
             $miniUrl = self::UPLOADS_FOLDER . $fileName;
-            $url = \Yii::getAlias('@api/web'. $folder_name  ."/". self::UPLOADS_FOLDER. $fileName);
+            $url = STORAGE_PATH . $miniUrl;
             $this->avatar->saveAs($url, false);
             return "storage/" . $miniUrl;
         } else {
@@ -1374,51 +1239,23 @@ class User extends CommonUser
         }
     }
 
-
     public function uploadPassport()
     {
         if ($this->validate()) {
-            $folder_name = substr(STORAGE_PATH, 0, -1);
-            if (!file_exists(\Yii::getAlias('@api/web'. $folder_name  ."/". self::UPLOADS_FOLDER_PASSPORT))) {
-                mkdir(\Yii::getAlias('@api/web'. $folder_name  ."/". self::UPLOADS_FOLDER_PASSPORT), 0777, true);
+
+            if (!file_exists(STORAGE_PATH  . self::UPLOADS_FOLDER)) {
+                mkdir(STORAGE_PATH  . self::UPLOADS_FOLDER, 0777, true);
             }
 
             $fileName = $this->id . \Yii::$app->security->generateRandomString(10) . '.' . $this->passport_file->extension;
-            $miniUrl = self::UPLOADS_FOLDER_PASSPORT . $fileName;
-            $url = \Yii::getAlias('@api/web'. $folder_name  ."/". self::UPLOADS_FOLDER_PASSPORT. $fileName);
+            $miniUrl = self::UPLOADS_FOLDER . $fileName;
+            $url = STORAGE_PATH . $miniUrl;
             $this->passport_file->saveAs($url, false);
             return "storage/" . $miniUrl;
         } else {
-            dd($this);
             return false;
         }
     }
-
-    public function uploadAllFile()
-    {
-        if ($this->validate()) {
-            $folder_name = substr(STORAGE_PATH, 0, -1);
-            if (!file_exists(\Yii::getAlias('@api/web'. $folder_name  ."/". self::UPLOADS_FOLDER_ALL_FILE))) {
-                mkdir(\Yii::getAlias('@api/web'. $folder_name  ."/". self::UPLOADS_FOLDER_ALL_FILE), 0777, true);
-            }
-
-            $data = [];
-            $fileName = $this->id . time(). '_'. \Yii::$app->security->generateRandomString(10) .'.' . $this->all_file->extension;
-
-            $miniUrl =  str_replace("'", "", 'storage/' .self::UPLOADS_FOLDER_ALL_FILE . $fileName);
-            $url = \Yii::getAlias('@api/web'. $folder_name  ."/". self::UPLOADS_FOLDER_ALL_FILE. $fileName);
-            $this->all_file->saveAs($url, false);
-            $data = [
-                'url' =>  $miniUrl,
-                'name' => $this->all_file->name,
-                'size' => $this->all_file->size
-            ];
-            return $data;
-        } else {
-            return false;
-        }
-    }
-
 
     //**parolni shifrlab saqlash */
 
@@ -1446,5 +1283,16 @@ class User extends CommonUser
         } else {
             return false;
         }
+    }
+
+    public function beforeSave($insert)
+    {
+        if ($insert) {
+            $this->created_by = Current_user_id();
+        } else {
+            $this->updated_by = Current_user_id();
+        }
+
+        return parent::beforeSave($insert);
     }
 }

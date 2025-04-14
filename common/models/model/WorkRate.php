@@ -6,22 +6,6 @@ use api\resources\ResourceTrait;
 use Yii;
 use yii\behaviors\TimestampBehavior;
 
-/**
- * This is the model class for table "building".
- *
- * @property int $id
- * @property float $type
- * @property string $name
- * @property int|null $order
- * @property int|null $status
- * @property int $created_at
- * @property int $updated_at
- * @property int $created_by
- * @property int $updated_by
- * @property int $is_deleted
- *
- * @property Room[] $rooms
- */
 class WorkRate extends \yii\db\ActiveRecord
 {
     public static $selected_language = 'uz';
@@ -49,9 +33,23 @@ class WorkRate extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['type'], 'required'],
-            [['order', 'status', 'created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted'], 'integer'],
-            [['type'], 'safe',],
+
+            // [
+            //     [
+            //         'daily_hours',
+            //     ], 'string'
+            // ],
+            [
+                [
+                    'rate',
+                    'weekly_hours',
+                    'hour_day',
+                ], 'double'
+            ],
+
+            [['type', 'order', 'status', 'created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted'], 'integer'],
+            // [['name'], 'string', 'max' => 255],
+            // [['name'], 'string', 'max' => 255],
         ];
     }
 
@@ -62,6 +60,12 @@ class WorkRate extends \yii\db\ActiveRecord
     {
         return [
             'id' => 'ID',
+            'rate' => _e('rate'),
+            'weekly_hours' => _e('weekly_hours'),
+            'hour_day' => _e('hour_day'),
+            'daily_hours' => _e('daily_hours'),
+            'type' => _e('type'),
+
             'order' => _e('Order'),
             'status' => _e('Status'),
             'created_at' => _e('Created At'),
@@ -76,7 +80,16 @@ class WorkRate extends \yii\db\ActiveRecord
     {
         $fields =  [
             'id',
+            'name' => function ($model) {
+                return $model->translate->name ?? '';
+            },
+
+            'rate',
+            'weekly_hours',
+            'hour_day',
+            'daily_hours',
             'type',
+
             'order',
             'status',
             'created_at',
@@ -92,31 +105,91 @@ class WorkRate extends \yii\db\ActiveRecord
     public function extraFields()
     {
         $extraFields =  [
+            'rooms',
+            'description',
             'createdBy',
             'updatedBy',
             'createdAt',
             'updatedAt',
+
         ];
 
         return $extraFields;
+    }
+
+    public function getInfoRelation()
+    {
+        // self::$selected_language = array_value(admin_current_lang(), 'lang_code', 'en');
+        return $this->hasMany(Translate::class, ['model_id' => 'id'])
+            ->andOnCondition(['language' => Yii::$app->request->get('lang'), 'table_name' => $this->tableName()]);
+    }
+
+    public function getInfoRelationDefaultLanguage()
+    {
+        // self::$selected_language = array_value(admin_current_lang(), 'lang_code', 'en');
+        return $this->hasMany(Translate::class, ['model_id' => 'id'])
+            ->andOnCondition(['language' => self::$selected_language, 'table_name' => $this->tableName()]);
+    }
+
+    /**
+     * Get Tranlate
+     *
+     * @return void
+     */
+    public function getTranslate()
+    {
+        if (Yii::$app->request->get('self') == 1) {
+            return $this->infoRelation[0];
+        }
+
+        return $this->infoRelation[0] ?? $this->infoRelationDefaultLanguage[0];
+    }
+
+    public function getDescription()
+    {
+        return $this->translate->description ?? '';
     }
 
     public static function createItem($model, $post)
     {
         $transaction = Yii::$app->db->beginTransaction();
         $errors = [];
-        if (!($model->validate())) {
-            $errors[] = $model->errors;
-            $transaction->rollBack();
-            return simplify_errors($errors);
+
+        if (isset($post['daily_hours'])) {
+            if (($post['daily_hours'][0] == "'") && ($post['daily_hours'][strlen($post['daily_hours']) - 1] == "'")) {
+                $post['daily_hours'] =  substr($post['daily_hours'], 1, -1);
+            }
+
+            if (!isJsonMK($post['daily_hours'])) {
+                $errors['daily_hours'] = [_e('Must be Json')];
+            } else {
+                $daily_hours = ((array)json_decode($post['daily_hours']));
+                $model->daily_hours = $daily_hours;
+            }
         }
 
-        if ($model->save()) {
-            $transaction->commit();
-            return true;
+        if (!($model->validate())) {
+            $errors[] = $model->errors;
+        }
+
+        $has_error = Translate::checkingAll($post);
+
+        if ($has_error['status']) {
+            if ($model->save()) {
+                if (isset($post['description'])) {
+                    Translate::createTranslate($post['name'], $model->tableName(), $model->id, $post['description']);
+                } else {
+                    Translate::createTranslate($post['name'], $model->tableName(), $model->id);
+                }
+                $transaction->commit();
+                return true;
+            } else {
+                $transaction->rollBack();
+                return simplify_errors($errors);
+            }
         } else {
             $transaction->rollBack();
-            return simplify_errors($errors);
+            return double_errors($errors, $has_error['errors']);
         }
     }
 
@@ -124,15 +197,42 @@ class WorkRate extends \yii\db\ActiveRecord
     {
         $transaction = Yii::$app->db->beginTransaction();
         $errors = [];
+
+        if (isset($post['daily_hours'])) {
+            if (($post['daily_hours'][0] == "'") && ($post['daily_hours'][strlen($post['daily_hours']) - 1] == "'")) {
+                $post['daily_hours'] =  substr($post['daily_hours'], 1, -1);
+            }
+
+            if (!isJsonMK($post['daily_hours'])) {
+                $errors['daily_hours'] = [_e('Must be Json')];
+            } else {
+                $daily_hours = ((array)json_decode($post['daily_hours']));
+                $model->daily_hours = $daily_hours;
+            }
+        }
+
         if (!($model->validate())) {
             $errors[] = $model->errors;
         }
-        if ($model->save()) {
-            $transaction->commit();
-            return true;
+        $has_error = Translate::checkingUpdate($post);
+        if ($has_error['status']) {
+            if ($model->save()) {
+                if (isset($post['name'])) {
+                    if (isset($post['description'])) {
+                        Translate::updateTranslate($post['name'], $model->tableName(), $model->id, $post['description']);
+                    } else {
+                        Translate::updateTranslate($post['name'], $model->tableName(), $model->id);
+                    }
+                }
+                $transaction->commit();
+                return true;
+            } else {
+                $transaction->rollBack();
+                return simplify_errors($errors);
+            }
         } else {
             $transaction->rollBack();
-            return simplify_errors($errors);
+            return double_errors($errors, $has_error['errors']);
         }
     }
 
@@ -140,9 +240,9 @@ class WorkRate extends \yii\db\ActiveRecord
     public function beforeSave($insert)
     {
         if ($insert) {
-            $this->created_by = current_user_id();
+            $this->created_by = Current_user_id();
         } else {
-            $this->updated_by = current_user_id();
+            $this->updated_by = Current_user_id();
         }
         return parent::beforeSave($insert);
     }

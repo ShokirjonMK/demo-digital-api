@@ -22,22 +22,12 @@ class EduSemestrController extends ApiActiveController
     {
         $model = new EduSemestr();
 
+        $student = Student::findOne(['user_id' => current_user_id()]);
 
-
-        if (isRole('student')) {
-
-            $student = Student::findOne(['user_id' => current_user_id()]);
-            if (isset($student)) {
-                if ($student->group == null) {
-                    return $this->response(0, _e('The student has not joined the group.'), null, null, ResponseStatus::FORBIDDEN);
-                }
-            }
-
+        if ($student && isRole('student')) {
             $query = $model->find()
-                ->where([
-                    'is_deleted' => 0,
-                    'edu_plan_id' => $student->group->edu_plan_id
-                ])
+                ->andWhere(['is_deleted' => 0])
+                ->andWhere(['edu_plan_id' => $student->edu_plan_id])
                 ->andFilterWhere(['like', 'name', Yii::$app->request->get('query')]);
         } else {
             $query = $model->find()
@@ -45,18 +35,22 @@ class EduSemestrController extends ApiActiveController
                 ->andFilterWhere(['like', 'edu_semestr.name', Yii::$app->request->get('query')]);
 
             /*  is Self  */
-            $t = $this->isSelf(Faculty::USER_ACCESS_TYPE_ID);
+            /*  $t = $this->isSelf(Faculty::USER_ACCESS_TYPE_ID);
             if ($t['status'] == 1) {
-                $eduPlan = EduPlan::find()->where(['faculty_id'=> $t['UserAccess']])->select('id');
+                $eduPlan = EduPlan::find()->where(['faculty_id'=> $t['UserAccess']->table_id])->select('id');
                 $query->andWhere(['in', 'edu_plan_id', $eduPlan]);
             } elseif ($t['status'] == 2) {
                 $query->andFilterWhere([
                     'edu_plan_id' => -1
                 ]);
-            }
+            } */
             /*  is Self  */
-
         }
+
+        if (Yii::$app->request->get('active') == 1) {
+            $query->andWhere([$model->tableName() . '.status' => 1]);
+        }
+
 
         // filter
         $query = $this->filterAll($query, $model);
@@ -90,10 +84,6 @@ class EduSemestrController extends ApiActiveController
         $model = EduSemestr::findOne($id);
         if (!$model) {
             return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
-        }
-
-        if ($model->edu_year_id == 7 || $model->edu_year_id == 8) {
-//            return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::UPROCESSABLE_ENTITY);
         }
 
         /*  is Self  */

@@ -2,8 +2,8 @@
 
 namespace common\models\model;
 
-use Yii;
 use api\resources\ResourceTrait;
+use Yii;
 use yii\behaviors\TimestampBehavior;
 
 /**
@@ -20,7 +20,6 @@ use yii\behaviors\TimestampBehavior;
  */
 class Languages extends \base\libs\RedisDB
 {
-
     use ResourceTrait;
 
     public function behaviors()
@@ -37,7 +36,7 @@ class Languages extends \base\libs\RedisDB
      */
     public static function tableName()
     {
-        return '{{languages}}';
+        return 'languages';
     }
 
     /**
@@ -45,6 +44,7 @@ class Languages extends \base\libs\RedisDB
      *
      * @return array
      */
+
     public function rules()
     {
         return [
@@ -52,7 +52,7 @@ class Languages extends \base\libs\RedisDB
             [['rtl', 'status', 'sort', 'default'], 'integer'],
             [['name', 'lang_code', 'locale'], 'string'],
             [['rtl', 'status', 'sort'], 'default', 'value' => 0],
-            [['status', 'created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted'], 'integer'],
+            [['order', 'status', 'created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted'], 'integer'],
             [['name'], 'string', 'max' => 255],
         ];
     }
@@ -84,6 +84,39 @@ class Languages extends \base\libs\RedisDB
      * @return array
      */
     public function getAll($where = array(), $order_by = 'name')
+    {
+        $query = Languages::find();
+        $query->asArray();
+        $query->orderBy($order_by);
+
+        if (is_array($where) && $where) {
+            $query->where($where);
+        }
+
+        $results = $query->all();
+
+        if ($results) {
+            foreach ($results as $key => $result) {
+                $results[$key]['flag'] = images_url('flags/svg/' . $result['lang_code'] . '.svg');
+            }
+        }
+
+        return $results;
+    }
+
+    public static function getAllIdsAsArray($where = array(), $order_by = 'name')
+    {
+        $query = Languages::find()->select('id')->where(['status' => 1])->asArray();
+        $query->orderBy($order_by);
+
+        if (is_array($where) && $where) {
+            $query->where($where);
+        }
+
+        return $query->column();
+    }
+
+    public static function getAlls($where = array(), $order_by = 'name')
     {
         $query = Languages::find();
         $query->asArray();
@@ -149,12 +182,13 @@ class Languages extends \base\libs\RedisDB
     {
         $transaction = Yii::$app->db->beginTransaction();
         $errors = [];
-        $model->status = 1;
+        if (!($model->validate())) {
+            $errors[] = $model->errors;
+        }
         if ($model->save()) {
             $transaction->commit();
             return true;
         } else {
-            $errors[] = $model->getErrorSummary(true);
             $transaction->rollBack();
             return simplify_errors($errors);
         }
@@ -164,12 +198,13 @@ class Languages extends \base\libs\RedisDB
     {
         $transaction = Yii::$app->db->beginTransaction();
         $errors = [];
-        $model->status = 1;
+        if (!($model->validate())) {
+            $errors[] = $model->errors;
+        }
         if ($model->save()) {
             $transaction->commit();
             return true;
         } else {
-            $errors[] = $model->getErrorSummary(true);
             $transaction->rollBack();
             return simplify_errors($errors);
         }
@@ -179,9 +214,9 @@ class Languages extends \base\libs\RedisDB
     public function beforeSave($insert)
     {
         if ($insert) {
-            $this->created_by = current_user_id();
+            $this->created_by = Current_user_id();
         } else {
-            $this->updated_by = current_user_id();
+            $this->updated_by = Current_user_id();
         }
         return parent::beforeSave($insert);
     }

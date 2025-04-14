@@ -23,8 +23,8 @@ class AreaController extends ApiActiveController
         $model = new Area();
 
         $query = $model->find()
-
             ->andFilterWhere(['like', 'name', Yii::$app->request->get('query')]);
+
 
         // filter
         $query = $this->filterAll($query, $model);
@@ -50,7 +50,7 @@ class AreaController extends ApiActiveController
     public function actionView($lang, $id)
     {
         $model = Area::findOne($id);
-            
+
         if (!$model) {
             return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
         }
@@ -61,6 +61,4 @@ class AreaController extends ApiActiveController
     {
         return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::FORBIDDEN);
     }
-
-
 }

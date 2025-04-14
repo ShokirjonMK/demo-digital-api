@@ -3,12 +3,8 @@
 namespace api\controllers;
 
 use api\components\MipServiceMK;
+use api\components\TurniketMK;
 use api\forms\Login;
-use common\models\model\Languages;
-use common\models\model\LoginHistory;
-use common\models\model\SubjectCategory;
-use common\models\model\TeacherAccess;
-use common\models\Subject;
 use Yii;
 use api\resources\User;
 use base\ResponseStatus;
@@ -19,13 +15,12 @@ use common\models\model\Faculty;
 use common\models\model\Kafedra;
 use common\models\model\Oferta;
 use common\models\model\Profile;
+use common\models\model\Turniket;
 use common\models\model\UserAccess;
-use yii\db\Expression;
-use yii\web\UploadedFile;
+use yii\caching\DbDependency;
 
 class UserController extends ApiActiveController
 {
-
     public $modelClass = 'api\resources\User';
 
     public function actions()
@@ -33,8 +28,60 @@ class UserController extends ApiActiveController
         return [];
     }
 
+    public function actionOferta()
+    {
+        // return $this->response(1, _e('Oferta comformed.'), current_user_roles_array(), null, ResponseStatus::CREATED);
+        $model = new Oferta();
+        $post = Yii::$app->request->post();
+        $post['role'] = current_user_roles_array();
+
+        $this->load($model, $post);
+
+        $result = Oferta::createItem($model, $post);
+        if (!is_array($result)) {
+            return $this->response(1, _e('Oferta comformed.'), $model, null, ResponseStatus::CREATED);
+        } else {
+            return $this->response(0, _e('There is an error occurred while processing.'), null, $result, ResponseStatus::UPROCESSABLE_ENTITY);
+        }
+    }
 
     public function actionGet($pin, $document_issue_date)
+    {
+
+        $user_ids = json_decode(\Yii::$app->request->get('user_ids'));
+
+        if (!empty($user_ids[0])) {
+            $responses = [];
+            foreach ($user_ids as $user_id) {
+                $profile = Profile::find()
+                    ->where(['user_id' => $user_id])
+                    ->andWhere(['not', ['passport_pin' => null]])
+                    ->one();
+                if ($profile) {
+                    $mip = MipServiceMK::getData($profile->passport_pin, $profile->passport_issued_date);
+
+                    if ($mip['status']) {
+                        $responses[$user_id] = $mip['data'];
+                    } else {
+                        $responses[$user_id] = $mip['error'];
+                    }
+                } else {
+                    $responses[$user_id] = _e('Data not found.');
+                }
+            }
+        } else {
+
+            $mip = MipServiceMK::getData($pin, $document_issue_date);
+
+            if ($mip['status']) {
+                return $this->response(1, _e('Success'), $mip['data']);
+            } else {
+                return $this->response(0, _e('There is an error occurred while processing.'), null, $mip['error'], ResponseStatus::UPROCESSABLE_ENTITY);
+            }
+        }
+    }
+
+    public function actionGet1($pin, $document_issue_date)
     {
         $mip = MipServiceMK::getData($pin, $document_issue_date);
 
@@ -49,7 +96,7 @@ class UserController extends ApiActiveController
     {
         $data = null;
         $errors = [];
-        $user = User::findOne(current_user_id());
+        $user = User::findOne(Current_user_id());
 
         if (isset($user)) {
             if ($user->status === User::STATUS_ACTIVE) {
@@ -57,21 +104,15 @@ class UserController extends ApiActiveController
 
                 $isMain = Yii::$app->request->get('is_main') ?? 1;
                 if ($isMain == 0) {
-                    if (!$user->getIsRoleStudent()) {
-                        Login::logout();
-                        return $this->response(0, _e('There is an error occurred while processing.'), null, null, ResponseStatus::UNAUTHORIZED);
-                    }
                     $data = [
                         'user_id' => $user->id,
                         'username' => $user->username,
                         'last_name' => $profile->last_name,
                         'first_name' => $profile->first_name,
+                        // 'login_history' => $user->getLoginHistory(),
                         // 'role' => $user->getRoles(),
-                        'profile' => $profile,
-                        'edu_form' => $user->student->eduForm,
                         'role' => $user->getRolesStudent(),
                         'oferta' => $user->getOfertaIsComformed(),
-                        'email' => $user->email,
                         // 'is_changed' => $user->is_changed,
                         // 'role' => $user->roleItem,
                         'permissions' => $user->permissionsStudent,
@@ -79,58 +120,38 @@ class UserController extends ApiActiveController
                         'expire_time' => date("Y-m-d H:i:s", $user->expireTime),
                     ];
                 } elseif ($isMain == 1) {
-
-                    $role = Yii::$app->request->get('role');
-
-                    $roleResult = $user->getRolesNoStudent($role);
-                    if (isset($roleResult['active_role'])) {
-                        $activeRole = $roleResult['active_role'];
-                    } else {
-                        $activeRole = null;
-                    }
-                    User::attachRole($activeRole);
-
-                    if (isset($roleResult['all_roles'])) {
-                        $roles = $roleResult['all_roles'];
-                    } else {
-                        $roles = null;
-                    }
-
-                    if (isset($roleResult['permission'])) {
-                        $permissions = $roleResult['permission'];
-                    } else {
-                        $permissions = null;
-                    }
-
                     $data = [
                         'user_id' => $user->id,
                         'username' => $user->username,
                         'last_name' => $profile->last_name,
                         'first_name' => $profile->first_name,
-                        'active_role' => $activeRole,
-                        //                        'role' => $user->getRolesNoStudent($role),
-                        'role' => $roles,
+                        // 'login_history' => $user->getLoginHistory(),
+                        // 'role' => $user->getRoles(),
+                        'role' => $user->getRolesNoStudent(),
                         'oferta' => $user->getOfertaIsComformed(),
                         'is_changed' => $user->is_changed,
-                        'profile' => $profile,
-                        'email' => $user->email,
-                        //                        'permissions' => $user->permissionsNoStudent,
-                        'change_password_type' => $user->change_password_type,
-                        'permissions' => $permissions,
+                        // 'role' => $user->roleItem,
+                        'permissions' => $user->permissionsNoStudent,
                         'access_token' => $user->access_token,
                         'expire_time' => date("Y-m-d H:i:s", $user->expireTime),
                     ];
+                    if (in_array('teacher', $user->getRolesNoStudent())) {
+                        //     $data['not_checked_count'] = $user->getNotCheckedCount();
+                        // }
+                        // if (isRole('teacher')) {
+                        $data['not_checked_count'] = $user->getNotCheckedCount($user->id);
+                    }
                 } else {
                     $data = [
                         'user_id' => $user->id,
                         'username' => $user->username,
                         'last_name' => $profile->last_name,
                         'first_name' => $profile->first_name,
+                        // 'login_history' => $user->getLoginHistory(),
                         // 'role' => $user->getRoles(),
                         'role' => $user->getRoles(),
                         'oferta' => $user->getOfertaIsComformed(),
                         // 'role' => $user->roleItem,
-                        'change_password_type' => $user->change_password_type,
                         'permissions' => $user->permissionsAll,
                         'access_token' => $user->access_token,
                         'expire_time' => date("Y-m-d H:i:s", $user->expireTime),
@@ -165,115 +186,45 @@ class UserController extends ApiActiveController
 
         $query = $model->find()
             ->with(['profile'])
-            ->join('LEFT JOIN', 'profile', 'profile.user_id = users.id')
-            ->join('LEFT JOIN', 'auth_assignment', 'auth_assignment.user_id = users.id')
-            ->andWhere(['users.deleted' => 0])
-            ->groupBy('profile.user_id')
-            ->andWhere(['not in', 'auth_assignment.item_name', ['admin' , currentRole()]])
-            ->andFilterWhere(['like', 'username', Yii::$app->request->get('query')]);
+            ->andWhere(['users.deleted' => 0]);
 
+        $query->join('LEFT JOIN', 'profile', 'profile.user_id = users.id')
+            ->join('LEFT JOIN', 'auth_assignment', 'auth_assignment.user_id = users.id');
+        $not_come = Yii::$app->request->get('not_come');
+        if (isset($not_come)) {
+            $date = Yii::$app->request->get('date') ? date('Y-m-d', strtotime(Yii::$app->request->get('date'))) : date('Y-m-d');
 
-        if (currentRole() != 'admin') {
-
-            $auth = AuthChild::find()
-                ->select('child')
-                ->where(['in', 'parent', currentRole()]);
-
-            $query->andFilterWhere(['in', 'auth_assignment.item_name', $auth]);
-
-//            $userIds = AuthAssignment::find()
-//                ->select('user_id')
-//                ->where([
-//                    'in', 'auth_assignment.item_name',
-//                    AuthChild::find()->select('child')->where([
-//                        'in', 'parent', currentRole()
-//                    ])
-//                ]);
-
-            // faculty
-            if (isRole('mudir')) {
-                $k = $this->isSelf(Kafedra::USER_ACCESS_TYPE_ID, 2);
-                // // kafedra
-                if ($k['status'] == 1) {
-                    $query->andFilterWhere([
-                        'in', 'users.id', UserAccess::find()->select('user_id')->where([
-                            'table_id' => $k['UserAccess'],
-                            'user_access_type_id' => Kafedra::USER_ACCESS_TYPE_ID,
-                            'is_deleted' => 0,
-                            'status' => 1,
-                        ])
-                    ]);
-                } else {
-                    $query->andFilterWhere([
-                        'users.id' => -1
-                    ]);
-                }
-            }
-
-
-            if (isRole('dean')) {
-                $dean = get_dean();
-            } elseif (isRole('dean_deputy')) {
-                $dean = get_dean_deputy();
-            }
-
-            if (isRole('dean') || isRole('dean_deputy')) {
-                if ($dean) {
-                    $query->andFilterWhere([
-                        'in', 'users.id', UserAccess::find()->select('user_id')->where([
-                            'table_id' => $dean->id,
-                            'user_access_type_id' => Faculty::USER_ACCESS_TYPE_ID,
-                            'is_deleted' => 0,
-                            'status' => 1,
-                        ])
-                    ])->orFilterWhere([
-                        'in', 'users.id', UserAccess::find()->select('user_id')->where([
-                            'table_id' => Kafedra::find()->select('id')->where([
-                                'faculty_id' => $dean->id,
-                                'status' => 1,
-                                'is_deleted' => 0,
-                            ]),
-                            'user_access_type_id' => Kafedra::USER_ACCESS_TYPE_ID,
-                            'is_deleted' => 0,
-                            'status' => 1,
-                        ])
-                    ]);
-                } else {
-                    $query->andFilterWhere([
-                        'users.id' => -1
-                    ]);
-                }
-            }
-
-            // department
-            if (isRole('dep_lead')) {
-                $d = $this->isSelf(Department::USER_ACCESS_TYPE_ID, 2);
-                if ($d['status'] == 1) {
-                    $query->andFilterWhere([
-                        'in', 'users.id', UserAccess::find()->select('user_id')->where([
-                            'table_id' => $d['UserAccess'],
-                            'user_access_type_id' => Department::USER_ACCESS_TYPE_ID,
-                            'is_deleted' => 0,
-                            'status' => 1,
-                        ])
-                    ]);
-                } else {
-                    $query->andFilterWhere([
-                        'users.id' => -1
-                    ]);
-                }
-            }
+            $query->join('LEFT JOIN', 'turniket', 'turniket.turniket_id = profile.turniket_id and turniket.date = :date and turniket.type = :type', [':date' => $date, ':type' => Turniket::TYPE_OQUV])
+                ->andWhere(['turniket.turniket_id' => null]);
         }
 
+        $query->andFilterWhere(['like', 'username', Yii::$app->request->get('query')]);
+
+
+        $query->andFilterWhere([
+            'in',
+            'users.id',
+            AuthAssignment::find()->select('user_id')->where([
+                'in',
+                'auth_assignment.item_name',
+                AuthChild::find()->select('child')->where([
+                    'in',
+                    'parent',
+                    AuthAssignment::find()->select("item_name")->where([
+                        'user_id' => current_user_id()
+                    ])
+                ])
+            ])
+        ]);
 
         $kafedraId = Yii::$app->request->get('kafedra_id');
         if (isset($kafedraId)) {
             $query->andFilterWhere([
-                'in', 'users.id', UserAccess::find()->select('user_id')->where([
+                'in',
+                'users.id',
+                UserAccess::find()->select('user_id')->where([
                     'table_id' => $kafedraId,
                     'user_access_type_id' => Kafedra::USER_ACCESS_TYPE_ID,
-                    'status' => 1,
-                    'is_deleted' => 0,
                 ])
             ]);
         }
@@ -281,52 +232,112 @@ class UserController extends ApiActiveController
         $facultyId = Yii::$app->request->get('faculty_id');
         if (isset($facultyId)) {
             $query->andFilterWhere([
-                'in', 'users.id', UserAccess::find()->select('user_id')->where([
+                'in',
+                'users.id',
+                UserAccess::find()->select('user_id')->where([
                     'table_id' => $facultyId,
                     'user_access_type_id' => Faculty::USER_ACCESS_TYPE_ID,
-                    'status' => 1,
-                    'is_deleted' => 0,
                 ])
             ]);
         }
 
+        if (!(isRole('admin') || isRole('content_assign') || isRole('passviewer') || isRole('kpi_check'))) {
+            $f = $this->isSelf(Faculty::USER_ACCESS_TYPE_ID);
+            $k = $this->isSelf(Kafedra::USER_ACCESS_TYPE_ID);
+            $d = $this->isSelf(Department::USER_ACCESS_TYPE_ID);
+
+            // faculty
+            if (!isRole('mudir')) {
+                if ($f['status'] == 1) {
+                    $query->andFilterWhere([
+                        'in',
+                        'users.id',
+                        UserAccess::find()->select('user_id')->where([
+                            'table_id' => $f['UserAccess']->table_id,
+                            'user_access_type_id' => Faculty::USER_ACCESS_TYPE_ID,
+                        ])
+                    ]);
+                }
+
+                // kafedra
+                if ($k['status'] == 1) {
+                    $query->orFilterWhere([
+                        'in',
+                        'users.id',
+                        UserAccess::find()->select('user_id')->where([
+                            'table_id' => $k['UserAccess']->table_id,
+                            'user_access_type_id' => Kafedra::USER_ACCESS_TYPE_ID,
+                        ])
+                    ]);
+                }
+            }
+
+            if (isRole('dean')) {
+
+                if ($k['status'] == 1) {
+                    $query->orFilterWhere([
+                        'in',
+                        'users.id',
+                        UserAccess::find()->select('user_id')->where([
+                            'table_id' => $k['UserAccess']->table_id,
+                            'user_access_type_id' => Kafedra::USER_ACCESS_TYPE_ID,
+                        ])
+                    ]);
+                }
+            }
+
+            // department
+            if ($d['status'] == 1) {
+                $query->andFilterWhere([
+                    'in',
+                    'users.id',
+                    UserAccess::find()->select('user_id')->where([
+                        'table_id' => $d['UserAccess']->table_id,
+                        'user_access_type_id' => Department::USER_ACCESS_TYPE_ID,
+                    ])
+                ]);
+            }
+            if ($f['status'] == 2 && $k['status'] == 2 && $d['status'] == 2) {
+                $query->andFilterWhere([
+                    'users.id' => -1
+                ]);
+            }
+        }
+        /*  is Self  */
+
         $filter = Yii::$app->request->get('filter');
-        //  Filter from Profile
+        $filter = json_decode(str_replace("'", "", $filter));
+        //  Filter from Profile 
         $profile = new Profile();
         if (isset($filter)) {
-            $filter = json_decode(str_replace("'", "", $filter));
-            if (isset($filter)) {
-                foreach ($filter as $attribute => $value) {
-                    $attributeMinus = explode('-', $attribute);
-                    if (isset($attributeMinus[1])) {
-                        if ($attributeMinus[1] == 'role_name') {
-                            if (is_array($value)) {
-                                $query = $query->andWhere(['not in', 'auth_assignment.item_name', $value]);
-                            }
-                        }
-                    }
-                    if ($attribute == 'role_name') {
+            foreach ($filter as $attribute => $value) {
+                $attributeMinus = explode('-', $attribute);
+                if (isset($attributeMinus[1])) {
+                    if ($attributeMinus[1] == 'role_name') {
                         if (is_array($value)) {
-                            $query = $query->andWhere(['in', 'auth_assignment.item_name', $value]);
-                        } else {
-                            $query = $query->andFilterWhere(['like', 'auth_assignment.item_name', '%' . $value . '%', false]);
+                            $query = $query->andWhere(['not in', 'auth_assignment.item_name', $value]);
                         }
                     }
-                    if (in_array($attribute, $profile->attributes())) {
-                        $query = $query->andFilterWhere(['profile.' . $attribute => $value]);
+                }
+                if ($attribute == 'role_name') {
+                    if (is_array($value)) {
+                        $query = $query->andWhere(['in', 'auth_assignment.item_name', $value]);
+                    } else {
+                        $query = $query->andFilterWhere(['auth_assignment.item_name' => $value]);
                     }
+                }
+                if (in_array($attribute, $profile->attributes())) {
+                    $query = $query->andFilterWhere(['profile.' . $attribute => $value]);
                 }
             }
         }
 
         $queryfilter = Yii::$app->request->get('filter-like');
+        $queryfilter = json_decode(str_replace("'", "", $queryfilter));
         if (isset($queryfilter)) {
-            $queryfilter = json_decode(str_replace("'", "", $queryfilter));
-            if (isset($queryfilter)) {
-                foreach ($queryfilter as $attributeq => $word) {
-                    if (in_array($attributeq, $profile->attributes())) {
-                        $query = $query->andFilterWhere(['like', 'profile.' . $attributeq, '%' . $word . '%', false]);
-                    }
+            foreach ($queryfilter as $attributeq => $word) {
+                if (in_array($attributeq, $profile->attributes())) {
+                    $query = $query->andFilterWhere(['like', 'profile.' . $attributeq, '%' . $word . '%', false]);
                 }
             }
         }
@@ -336,6 +347,224 @@ class UserController extends ApiActiveController
 
         // sort
         $query = $this->sort($query);
+
+        // dd($query->createCommand()->getRawSql());
+
+
+        // data caching
+        $query = $query->cache(3600, new DbDependency(['sql' => 'SELECT MAX(updated_at) FROM users']));
+
+        // data
+        $data = $this->getData($query);
+        // $data = $query->all();
+
+        return $this->response(1, _e('Success'), $data);
+    }
+
+    public function actionNotCome($lang)
+    {
+        $model = new User();
+        $date = Yii::$app->request->get('date') ? date('Y-m-d', strtotime(Yii::$app->request->get('date'))) : date('Y-m-d');
+
+        $query = $model->find()
+            ->with(['profile'])
+            ->andWhere(['users.deleted' => 0])
+            ->andWhere(['users.status' => 10])
+            ->andWhere(['users.attendence' => 1]);
+
+        $query->join('LEFT JOIN', 'user_access', 'user_access.user_id = users.id');
+
+        $query->andWhere([
+            'user_access.is_deleted' => 0,
+            'user_access.archived' => 0,
+        ]);
+
+        $query->join('LEFT JOIN', 'profile', 'profile.user_id = users.id')
+            ->join('LEFT JOIN', 'auth_assignment', 'auth_assignment.user_id = users.id');
+
+        $query->join('LEFT JOIN', 'turniket', 'turniket.user_id = profile.user_id and turniket.date = :date', [':date' => $date]);
+
+        $late = Yii::$app->request->get('late');
+
+        if (isset($late)) {
+            $go_in_time = strtotime($date . ' ' . "08:31:00");
+            $query->andWhere(['>', 'turniket.go_in_time',  $go_in_time]);
+        } else {
+            $query->andWhere(['turniket.turniket_id' => null]);
+        }
+
+
+        $query->andFilterWhere(['like', 'username', Yii::$app->request->get('query')]);
+
+        /*  is Self  */
+
+        $filter = Yii::$app->request->get('filter');
+        $filter = json_decode(str_replace("'", "", $filter));
+        //  Filter from Profile 
+        $profile = new Profile();
+        $userAccess = new UserAccess();
+        if (isset($filter)) {
+            foreach ($filter as $attribute => $value) {
+                $attributeMinus = explode('-', $attribute);
+                if (isset($attributeMinus[1])) {
+                    if ($attributeMinus[1] == 'role_name') {
+                        if (is_array($value)) {
+                            $query = $query->andWhere(['not in', 'auth_assignment.item_name', $value]);
+                        }
+                    }
+                }
+
+                if ($attribute == 'role_name') {
+                    if (is_array($value)) {
+                        $query = $query->andWhere(['in', 'auth_assignment.item_name', $value]);
+                    } else {
+                        $query = $query->andFilterWhere(['auth_assignment.item_name' => $value]);
+                    }
+                }
+
+                if (in_array($attribute, $profile->attributes())) {
+                    $query = $query->andFilterWhere(['profile.' . $attribute => $value]);
+                }
+
+                if (in_array($attribute, $userAccess->attributes())) {
+                    $query = $query->andFilterWhere(['user_access.' . $attribute => $value]);
+                }
+            }
+        }
+
+        $queryfilter = Yii::$app->request->get('filter-like');
+        $queryfilter = json_decode(str_replace("'", "", $queryfilter));
+        if (isset($queryfilter)) {
+            foreach ($queryfilter as $attributeq => $word) {
+                if (in_array($attributeq, $profile->attributes())) {
+                    $query = $query->andFilterWhere(['like', 'profile.' . $attributeq, '%' . $word . '%', false]);
+                }
+
+                if (in_array($attributeq, $userAccess->attributes())) {
+                    $query = $query->andFilterWhere(['like', 'user_access.' . $attributeq, '%' . $word . '%', false]);
+                }
+            }
+        }
+
+        // filter
+        $query = $this->filterAll($query, $model);
+
+        // sort
+        $query = $this->sort($query);
+
+        // dd($query->createCommand()->getRawSql());
+
+        // data caching
+        // $query = $query->cache(3600, new DbDependency(['sql' => 'SELECT MAX(updated_at) FROM users']));
+
+        // data
+        $data = $this->getData($query);
+
+        return $this->response(1, _e('Success'), $data);
+    }
+
+    public function actionDeleted($lang)
+    {
+        $model = new User();
+
+        $query = $model->find()
+            ->with(['profile'])
+            ->andWhere(['users.deleted' => 1])
+            ->join('LEFT JOIN', 'profile', 'profile.user_id = users.id')
+            ->join('LEFT JOIN', 'auth_assignment', 'auth_assignment.user_id = users.id')
+            // ->groupBy('users.id')
+            ->andFilterWhere(['like', 'username', Yii::$app->request->get('query')]);
+
+        $userIds = AuthAssignment::find()->select('user_id')->where([
+            'in',
+            'auth_assignment.item_name',
+            AuthChild::find()->select('child')->where([
+                'in',
+                'parent',
+                AuthAssignment::find()->select("item_name")->where([
+                    'user_id' => current_user_id()
+                ])
+            ])
+        ]);
+
+        $query->andFilterWhere([
+            'in',
+            'users.id',
+            $userIds
+        ]);
+
+        $kafedraId = Yii::$app->request->get('kafedra_id');
+        if (isset($kafedraId)) {
+            $query->andFilterWhere([
+                'in',
+                'users.id',
+                UserAccess::find()->select('user_id')->where([
+                    'table_id' => $kafedraId,
+                    'user_access_type_id' => Kafedra::USER_ACCESS_TYPE_ID,
+                ])
+            ]);
+        }
+
+        $facultyId = Yii::$app->request->get('faculty_id');
+        if (isset($facultyId)) {
+            $query->andFilterWhere([
+                'in',
+                'users.id',
+                UserAccess::find()->select('user_id')->where([
+                    'table_id' => $facultyId,
+                    'user_access_type_id' => Faculty::USER_ACCESS_TYPE_ID,
+                ])
+            ]);
+        }
+
+        $filter = Yii::$app->request->get('filter');
+        $filter = json_decode(str_replace("'", "", $filter));
+        //  Filter from Profile 
+        $profile = new Profile();
+        if (isset($filter)) {
+            foreach ($filter as $attribute => $value) {
+                $attributeMinus = explode('-', $attribute);
+                if (isset($attributeMinus[1])) {
+                    if ($attributeMinus[1] == 'role_name') {
+                        if (is_array($value)) {
+                            $query = $query->andWhere(['not in', 'auth_assignment.item_name', $value]);
+                        }
+                    }
+                }
+                if ($attribute == 'role_name') {
+                    if (is_array($value)) {
+                        $query = $query->andWhere(['in', 'auth_assignment.item_name', $value]);
+                    } else {
+                        $query = $query->andFilterWhere(['like', 'auth_assignment.item_name', '%' . $value . '%', false]);
+                    }
+                }
+                if (in_array($attribute, $profile->attributes())) {
+                    $query = $query->andFilterWhere(['profile.' . $attribute => $value]);
+                }
+            }
+        }
+
+        $queryfilter = Yii::$app->request->get('filter-like');
+        $queryfilter = json_decode(str_replace("'", "", $queryfilter));
+        if (isset($queryfilter)) {
+            foreach ($queryfilter as $attributeq => $word) {
+                if (in_array($attributeq, $profile->attributes())) {
+                    $query = $query->andFilterWhere(['like', 'profile.' . $attributeq, '%' . $word . '%', false]);
+                }
+            }
+        }
+
+        // filter
+        $query = $this->filterAll($query, $model);
+
+        // sort
+        $query = $this->sort($query);
+
+        // dd($query->createCommand()->getRawSql());
+
+
+        // data caching
+        // $query = $query->cache(3600, new DbDependency(['sql' => 'SELECT MAX(updated_at) FROM users']));
 
         // data
         $data = $this->getData($query);
@@ -352,7 +581,6 @@ class UserController extends ApiActiveController
 
         $this->load($model, $post);
         $this->load($profile, $post);
-        //        dd($profile);
         $result = User::createItem($model, $profile, $post);
         if (!is_array($result)) {
             return $this->response(1, _e('User successfully created.'), $model, null, ResponseStatus::CREATED);
@@ -367,57 +595,10 @@ class UserController extends ApiActiveController
         if (!$model) {
             return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
         }
-
-        $user = current_user();
-        $isChild =
-            AuthChild::find()
-                ->where(['in', 'child', current_user_roles_array($model->id)])
-                ->andWhere(['parent' => $user->attach_role])
-                ->all();
-
-        $isChildTwo =
-            AuthChild::find()
-                ->where(['child' => $user->attach_role])
-                ->andWhere(['in' , 'parent' , current_user_roles_array($model->id)])
-                ->all();
-
-        if ((count($isChild) == 0 || count($isChildTwo) > 0) && !isRole('admin')) return $this->response(0, _e('You can not get.'), null, null, ResponseStatus::NOT_FOUND);
-
-        if (isRole('dean')) {
-            $f = get_dean();
-            $isMine = $this->isMine(UserAccess::FACULTY, $f->id, $model->id);
-            if (!$isMine) {
-                return $this->response(0, _e('You can not get.'), null, null, ResponseStatus::NOT_FOUND);
-            }
-        } elseif (isRole('mudir')) {
-            $m = get_mudir();
-            $isMine = $this->isMine(UserAccess::KAFEDRA, $m->id, $model->id);
-            if (!$isMine) {
-                return $this->response(0, _e('You can not get.'), null, null, ResponseStatus::NOT_FOUND);
-            }
-        }
-
         $profile = $model->profile;
         $post = Yii::$app->request->post();
         $this->load($model, $post);
         $this->load($profile, $post);
-        $data = UploadedFile::getInstancesByName('all_file');
-        if ($data) {
-            $result_all_file = User::allFileSave($model, $data, $profile);
-            if (is_array($result_all_file)) {
-                $profile->all_file = json_encode($result_all_file);
-                if ($profile->save()) {
-                    //                    dd(json_decode($profile->all_file));
-                    return $this->response(1, _e('User All File successfully created.'), $model, null, ResponseStatus::OK);
-                } else {
-                    $last = end($result_all_file);
-                    unset($last[0]->url);
-                    return $this->response(0, _e('There is an error occurred while processing.'), null, $result_all_file, ResponseStatus::UPROCESSABLE_ENTITY);
-                }
-            } else {
-                return $this->response(0, _e('There is an error occurred while processing.'), null, $result_all_file, ResponseStatus::UPROCESSABLE_ENTITY);
-            }
-        }
         $result = User::updateItem($model, $profile, $post);
         if (!is_array($result)) {
             return $this->response(1, _e('User successfully updated.'), $model, null, ResponseStatus::OK);
@@ -479,107 +660,43 @@ class UserController extends ApiActiveController
         }
     }
 
-
     public function actionView($id)
     {
+        // Eager loading the profile relation using `with()`
         $model = User::find()
-            ->with(['profile'])
-            ->join('INNER JOIN', 'profile', 'profile.user_id = users.id')
-            ->andWhere(['users.id' => $id, 'users.deleted' => 0])
+            ->with('profile')
+            ->where(['users.id' => $id])
             ->one();
 
-        $user = current_user();
-        $isChild =
-            AuthChild::find()
-                ->where(['in', 'child', current_user_roles_array($model->id)])
-                ->andWhere(['parent' => $user->attach_role])
-                ->all();
-
-        $isChildTwo =
-            AuthChild::find()
-                ->where(['child' => $user->attach_role])
-                ->andWhere(['in' , 'parent' , current_user_roles_array($model->id)])
-                ->all();
-
-        if ((count($isChild) == 0 || count($isChildTwo) > 0) && !isRole('admin')) return $this->response(0, _e('You can not get.'), null, null, ResponseStatus::NOT_FOUND);
-
-
+        // If the model is not found, return a 'Data not found' response
         if (!$model) {
             return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
         }
 
+        // Add to turniket if requested
+        if (Yii::$app->request->get('add_turniket') == 1 && $model->profile) {
+            return TurniketMK::addPerson($model->profile);
+        }
+
+        // Add to turniket if requested
+        if (Yii::$app->request->get('assigin_turniket') == 1 && $model->profile) {
+            $model['turniket'] = TurniketMK::addAccessPerson($model->profile);
+        }
+
+        // Return the model data with a success response
         return $this->response(1, _e('Success.'), $model, null, ResponseStatus::OK);
     }
 
+
     public function actionDelete($id)
     {
-        //        return $this->response(0, _e('Data not found.'), null, null, ResponseStatus::NOT_FOUND);
-        $post = Yii::$app->request->post();
-        if (isset($post['url'])) {
-            //            $profileAllFileDeleted = Profile::findOne(['user_id' => $id]);
-            //            dd(json_decode($profileAllFileDeleted->all_file));
-            $url = $post['url'];
-            $delete = User::deleteAllFile($id, $url);
-            //            dd($delete);
-            if (!is_array($delete)) {
-                return $this->response(1, _e('File successfully deleted.'), null, null, ResponseStatus::OK);
-            } else {
-                return $this->response(0, _e('There is an error occurred while processing.'), null, $delete, ResponseStatus::BAD_REQUEST);
-            }
-        }
         $result = User::deleteItem($id);
         if (!is_array($result)) {
             return $this->response(1, _e('User successfully deleted.'), null, null, ResponseStatus::OK);
         } else {
-            return $this->response(0, _e('There is an error occurred while processing.'), null, $result, ResponseStatus::BAD_REQUEST);
+            return $this->response(0, _e('There is an error occurred while processing.'), null, $result, ResponseStatus::UPROCESSABLE_ENTITY);
         }
     }
-
-    //    public function actionAllFileRemoves($id)
-    //    {
-    //        $post = Yii::$app->request->post();
-    //        dd(3221);
-    //        $result = User::deleteItem($id);
-    //        if (!is_array($result)) {
-    //            return $this->response(1, _e('User successfully deleted.'), null, null, ResponseStatus::OK);
-    //        } else {
-    //            return $this->response(0, _e('There is an error occurred while processing.'), null, $result, ResponseStatus::BAD_REQUEST);
-    //        }
-    //    }
-
-    public function actionLoginHistory($lang , $id)
-    {
-        $model = new LoginHistory();
-
-        $query = $model->find();
-        if (isRole('admin') || isRole('edu_admin')) {
-            $query = $query->andWhere(['user_id' => $id]);
-        } else {
-            $query = $query->andWhere(['user_id' => current_user_id()]);
-        }
-
-        $get = Yii::$app->request->get('date');
-        if ($get != null) {
-
-            $start = date("Y-m-d 00:00:00" , strtotime($get));
-            $end = date("Y-m-d 23:59:59" , strtotime($get));
-
-            $query = $query->andWhere(['>=' , 'created_on' , $start])
-                ->andWhere(['<=' , 'created_on' , $end]);
-        }
-
-        // filter
-        $query = $this->filterAll($query, $model);
-
-        // sort
-        $query = $this->sort($query);
-
-        // data
-        $data =  $this->getData($query);
-        return $this->response(1, _e('Success'), $data);
-    }
-
-
 
     public function actionStatusList()
     {

@@ -80,7 +80,6 @@ function model_errors($errs)
     return $res;
 }
 
-
 function double_errors($errs, $trErrs)
 {
     $res = [];
@@ -124,21 +123,4 @@ function isJsonMK($string)
 {
     json_decode($string);
     return json_last_error() === JSON_ERROR_NONE;
-}
-
-function activeYearId()
-{
-    $query = \common\models\model\EduYear::find()->where(['status' => 1, 'is_deleted' => 0])->one();
-    if ($query) {
-        return $query->id;
-    }
-    return 0;
-}
-function activeYear()
-{
-    $query = \common\models\model\EduYear::find()->where(['status' => 1, 'is_deleted' => 0])->one();
-    if ($query) {
-        return $query;
-    }
-    return null;
 }

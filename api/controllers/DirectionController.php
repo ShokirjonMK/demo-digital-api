@@ -3,8 +3,6 @@
 namespace api\controllers;
 
 
-use common\models\model\TimeTable1;
-use common\models\model\TimetableDate;
 use Yii;
 use common\models\model\Direction;
 use common\models\model\Translate;
@@ -33,31 +31,19 @@ class DirectionController extends ApiActiveController
             ->with(['infoRelation'])
             ->andWhere([$this->table_name . '.is_deleted' => 0])
             ->leftJoin("translate tr", "tr.model_id = $this->table_name.id and tr.table_name = '$this->table_name'")
-            ->groupBy($this->table_name . '.id')
-//            ->andWhere(['tr.language' => Yii::$app->request->get('lang')])
+            // ->groupBy($this->table_name . '.id')
             ->andFilterWhere(['like', 'tr.name', Yii::$app->request->get('query')]);
 
-
-        if (isRole('teacher')) {
-            $query->andWhere(['in' , $this->table_name .'.id' , TimetableDate::find()
-                ->select('direction_id')
-                ->where([
-                    'user_id' => current_user_id(),
-                    'status' => 1,
-                    'is_deleted' => 0,
-                ])]);
-        } else {
-            // is Self
-            $t = $this->isSelf(Faculty::USER_ACCESS_TYPE_ID);
-            if ($t['status'] == 1) {
-                $query->andFilterWhere([
-                    $this->table_name.'.faculty_id' => $t['UserAccess']
-                ]);
-            } elseif ($t['status'] == 2) {
-                $query->andFilterWhere([
-                    'faculty_id' => -1
-                ]);
-            }
+        // is Self 
+        $t = $this->isSelf(Faculty::USER_ACCESS_TYPE_ID);
+        if ($t['status'] == 1) {
+            $query->andFilterWhere([
+               'faculty_id' => $t['UserAccess']->table_id
+            ]);
+        } elseif ($t['status'] == 2) {
+            $query->andFilterWhere([
+                'faculty_id' => -1
+            ]);
         }
 
         // filter

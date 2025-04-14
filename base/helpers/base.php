@@ -43,19 +43,6 @@ function is_phone($string, $country = null)
     return false;
 }
 
-function rating($ball)
-{
-    if ($ball >= 60 && $ball <= 69) {
-        return 3;
-    } elseif ($ball >= 70 && $ball <= 89) {
-        return 4;
-    } elseif ($ball >= 90) {
-        return 5;
-    } else {
-        return 0;
-    }
-}
-
 // Get param
 function get_param($key, $default = false)
 {

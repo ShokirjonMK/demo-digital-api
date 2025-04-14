@@ -19,7 +19,7 @@ use yii\behaviors\TimestampBehavior;
  * @property int $updated_by
  * @property int $is_deleted
  *
- * @property TimeTable1[] $timeTables
+ * @property TimeTable[] $timeTables
  */
 
 class Para extends \yii\db\ActiveRecord
@@ -103,6 +103,7 @@ class Para extends \yii\db\ActiveRecord
     {
         $extraFields =  [
             'timeTables',
+            'current',
             'description',
             'createdBy',
             'updatedBy',
@@ -111,6 +112,19 @@ class Para extends \yii\db\ActiveRecord
         ];
 
         return $extraFields;
+    }
+
+    public function getCurrent()
+    {
+        $nowTime = date("H:i");
+
+        if ($nowTime >= $this->start_time && $nowTime <= $this->end_time) {
+            // If it does, return the ID of the first period
+            return 1;
+        } else {
+            return 0;
+        }
+        return 1;
     }
 
     public function getTranslate()
@@ -143,7 +157,7 @@ class Para extends \yii\db\ActiveRecord
 
     public function getTimeTables()
     {
-        return $this->hasMany(TimeTable1::className(), ['para_id' => 'id']);
+        return $this->hasMany(TimeTable::className(), ['para_id' => 'id']);
     }
 
     public static function createItem($model, $post)

@@ -43,7 +43,8 @@ use yii\behaviors\TimestampBehavior;
  * @property Student $student
  * @property Subject $subject
  * @property SubjectCategory $subjectCategory
- * @property TimeTable1 $timeTable
+ * @property TimeOption $timeOption
+ * @property TimeTable $timeTable
  */
 class StudentAttend extends \yii\db\ActiveRecord
 {
@@ -59,6 +60,7 @@ class StudentAttend extends \yii\db\ActiveRecord
     }
 
     const STATUS_ACTIVE = 1;
+    const STATUS_AVTOBOT = 2;
     const STATUS_INACTIVE = 0;
 
     const REASON_TRUE = 1;
@@ -82,25 +84,28 @@ class StudentAttend extends \yii\db\ActiveRecord
                 'student_id',
                 'attend_id',
                 'date',
-                'time_table_id',
-                'subject_id',
-                'subject_category_id',
-                'edu_year_id',
-                'edu_semestr_id'
+                // 'time_table_id',
+                // 'subject_id',
+                // 'subject_category_id',
+                // 'time_option_id',
+                // 'edu_year_id',
+                // 'edu_semestr_id'
             ], 'required'],
             [[
                 'student_id',
                 'reason',
                 'attend_id',
-//                'attend_reason_id',
+                'attend_reason_id',
                 'time_table_id',
                 'subject_id',
                 'subject_category_id',
+                'time_option_id',
                 'edu_year_id',
                 'edu_semestr_id',
                 'faculty_id',
                 'course_id',
                 'edu_plan_id',
+                'student_time_table_id',
                 'type',
                 'status',
                 'order',
@@ -108,10 +113,13 @@ class StudentAttend extends \yii\db\ActiveRecord
                 'updated_at',
                 'created_by',
                 'updated_by',
-                'is_deleted'
+                'is_deleted',
+                'archived'
+
             ], 'integer'],
             [['date'], 'safe'],
             [['attend_id'], 'exist', 'skipOnError' => true, 'targetClass' => Attend::className(), 'targetAttribute' => ['attend_id' => 'id']],
+            [['attend_reason_id'], 'exist', 'skipOnError' => true, 'targetClass' => AttendReason::className(), 'targetAttribute' => ['attend_reason_id' => 'id']],
             [['edu_plan_id'], 'exist', 'skipOnError' => true, 'targetClass' => EduPlan::className(), 'targetAttribute' => ['edu_plan_id' => 'id']],
             [['edu_semestr_id'], 'exist', 'skipOnError' => true, 'targetClass' => EduSemestr::className(), 'targetAttribute' => ['edu_semestr_id' => 'id']],
             [['edu_year_id'], 'exist', 'skipOnError' => true, 'targetClass' => EduYear::className(), 'targetAttribute' => ['edu_year_id' => 'id']],
@@ -119,9 +127,12 @@ class StudentAttend extends \yii\db\ActiveRecord
             [['student_id'], 'exist', 'skipOnError' => true, 'targetClass' => Student::className(), 'targetAttribute' => ['student_id' => 'id']],
             [['subject_id'], 'exist', 'skipOnError' => true, 'targetClass' => Subject::className(), 'targetAttribute' => ['subject_id' => 'id']],
             [['subject_category_id'], 'exist', 'skipOnError' => true, 'targetClass' => SubjectCategory::className(), 'targetAttribute' => ['subject_category_id' => 'id']],
-            [['time_table_id'], 'exist', 'skipOnError' => true, 'targetClass' => TimeTable1::className(), 'targetAttribute' => ['time_table_id' => 'id']],
+            [['time_option_id'], 'exist', 'skipOnError' => true, 'targetClass' => TimeOption::className(), 'targetAttribute' => ['time_option_id' => 'id']],
+            [['time_table_id'], 'exist', 'skipOnError' => true, 'targetClass' => TimeTable::className(), 'targetAttribute' => ['time_table_id' => 'id']],
+
 
             [['student_id'], 'unique', 'targetAttribute' => ['student_id', 'time_table_id', 'date'], 'message' => "Student Already recorded"],
+
         ];
     }
 
@@ -150,6 +161,7 @@ class StudentAttend extends \yii\db\ActiveRecord
             'edu_plan_id' => _e('Edu Plan ID'),
 
             'type' => _e('type'),
+            'archived' => _e('archived'),
             'status' => _e('Status'),
             'order' => _e('Order'),
             'created_at' => _e('Created At'),
@@ -183,7 +195,7 @@ class StudentAttend extends \yii\db\ActiveRecord
 
 
             // 'order',
-            // 'status',
+            'status',
             // 'created_at',
             // 'updated_at',
             // 'created_by',
@@ -332,6 +344,41 @@ class StudentAttend extends \yii\db\ActiveRecord
         return $this->hasOne(TimeOption::className(), ['id' => 'time_option_id']);
     }
 
+
+    /**
+     * Gets student time table ID
+     *
+     * @return int|null
+     */
+    public function getStudentTimeTableIdOld(): ?int
+    {
+        $studentTimeTable = StudentTimeTable::find()
+            ->select('id')
+            ->where(['student_id' => $this->student_id, 'time_table_id' => $this->time_table_id])
+            ->orderBy(['id' => SORT_DESC])
+            ->limit(1)
+            ->one();
+
+        return $studentTimeTable ? (int)$studentTimeTable->id : null;
+    }
+    /**
+     * Gets student time table ID
+     *
+     * @return int|null
+     */
+    public function getStudentTimeTableId(): ?int
+    {
+        // Retrieve the StudentTimeTable record with the given student_id and time_table_id
+        return StudentTimeTable::find()
+            ->select('id')
+            ->where(['student_id' => $this->student_id, 'time_table_id' => $this->time_table_id])
+            ->orderBy(['id' => SORT_DESC])
+            ->scalar();  // Get the scalar value (only 'id')
+    }
+
+
+
+
     /**
      * Gets query for [[TimeTable]].
      *
@@ -339,7 +386,7 @@ class StudentAttend extends \yii\db\ActiveRecord
      */
     public function getTimeTable()
     {
-        return $this->hasOne(TimeTable1::className(), ['id' => 'time_table_id']);
+        return $this->hasOne(TimeTable::className(), ['id' => 'time_table_id']);
     }
 
 
@@ -371,6 +418,8 @@ class StudentAttend extends \yii\db\ActiveRecord
         $model->edu_semestr_id = $model->timeTable->edu_semestr_id;
         $model->faculty_id = $model->timeTable->faculty_id;
         $model->edu_plan_id = $model->timeTable->edu_plan_id;
+        $model->student_time_table_id = $model->getStudentTimeTableId();
+        // $model->student_time_table_id = self::getStudentTimeTableId();
 
         if (!($model->validate())) {
             $errors[] = $model->errors;
@@ -428,6 +477,19 @@ class StudentAttend extends \yii\db\ActiveRecord
     public function beforeSave($insert)
     {
         if ($insert) {
+            $this->subject_id = $this->attend->subject_id;
+            $this->subject_category_id = $this->attend->subject_category_id;
+            $this->time_option_id = $this->attend->time_option_id;
+            $this->edu_year_id = $this->attend->edu_year_id;
+            $this->edu_semestr_id = $this->attend->edu_semestr_id;
+
+            $this->faculty_id = $this->attend->faculty_id;
+            $this->edu_plan_id = $this->attend->edu_plan_id;
+            $this->course_id = $this->timeTable->course_id;
+            $this->semestr_id = $this->eduSemestr->semestr_id;
+            $this->type = $this->attend->type;
+
+            // dd($this);
             $this->created_by = current_user_id();
         } else {
             $this->updated_by = current_user_id();

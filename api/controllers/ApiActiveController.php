@@ -6,7 +6,6 @@ use yii\rest\ActiveController;
 
 class ApiActiveController extends ActiveController
 {
-
     use ApiActionTrait;
 
     public $token_key = false;
