@@ -26,7 +26,8 @@
         "phpoffice/phpspreadsheet": "^1.21",
         "yiisoft/yii2-httpclient": "*",
         "guzzlehttp/guzzle": "^7.5",
-        "aki/yii2-bot-telegram": "*"
+        "aki/yii2-bot-telegram": "*",
+        "yiisoft/yii2-redis": "^2.0"
     },
     "require-dev": {
         "yiisoft/yii2-debug": "~2.1.0",

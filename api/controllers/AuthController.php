@@ -34,6 +34,7 @@ class AuthController extends ApiController
                     }
                     $res = LoginHistory::createItemLogin($result['data']['user_id']);
                     if (!is_array($res)) {
+                        Yii::$app->redis->set('user:' . $result['data']['user_id'], json_encode($result['data']));
                         return $this->response(1, _e('User successfully logged in.'), $result['data'], null);
                     }
                     return $this->response(1, _e('User successfully logged in.'), $result['data'], _e('Login not saved'));
@@ -51,6 +52,7 @@ class AuthController extends ApiController
 
                     $res = LoginHistory::createItemLogin($result['data']['user_id']);
                     if (!is_array($res)) {
+                        Yii::$app->redis->set('user:' . $result['data']['user_id'], json_encode($result['data']));
 
 
 
@@ -61,8 +63,8 @@ class AuthController extends ApiController
                         //     return $this->response(0, _e('There is an error occurred while processing.'), null, $errors, ResponseStatus::UPROCESSABLE_ENTITY);
                         // }
                         // /** Kurs bo'yicha vaqt belgilash */
-          
-                        
+
+
                         return $this->response(1, _e('User successfully logged in.'), $result['data'], null);
                     }
                     return $this->response(1, _e('User successfully logged in.'), $result['data'], _e('Login not saved'));
@@ -76,6 +78,7 @@ class AuthController extends ApiController
             if ($result['is_ok']) {
                 $res = LoginHistory::createItemLogin($result['data']['user_id']);
                 if (!is_array($res)) {
+                    Yii::$app->redis->set('user:' . $result['data']['user_id'], json_encode($result['data']));
                     return $this->response(1, _e('User successfully logged in.'), $result['data'], null);
                 }
 
@@ -92,6 +95,7 @@ class AuthController extends ApiController
         if ($result['is_ok']) {
             $res = LoginHistory::createItemLogin($result['data']['user_id']);
             if (!is_array($res)) {
+                Yii::$app->redis->set('user:' . $result['data']['user_id'], json_encode($result['data']));
                 return $this->response(1, _e('User successfully logged in.'), $result['data'], null);
             }
             return $this->response(1, _e('User successfully logged in.'), $result['data'], _e('Login not saved'));

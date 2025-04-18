@@ -96,6 +96,15 @@ class UserController extends ApiActiveController
     {
         $data = null;
         $errors = [];
+
+
+        $cacheKey = 'user:' . current_user_id();
+        $userData = Yii::$app->redis->get($cacheKey);
+        if ($userData !== null) {
+            // dd($userData);
+            return $this->response(1, _e('User successfully refreshed'), json_decode($userData), null, ResponseStatus::OK);
+        }
+
         $user = User::findOne(Current_user_id());
 
         if (isset($user)) {

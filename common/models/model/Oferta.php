@@ -85,6 +85,7 @@ class Oferta extends \yii\db\ActiveRecord
             $errors[] = $model->errors;
         }
         if ($model->save()) {
+            
             $transaction->commit();
             return true;
         } else {

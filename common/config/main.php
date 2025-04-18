@@ -20,12 +20,18 @@ $main_config = array(
     'vendorPath' => dirname(dirname(__DIR__)) . '/vendor',
     'timeZone' => 'Asia/Tashkent',
     'components' => [
+        'redis' => [
+            'class' => 'yii\redis\Connection',
+            'hostname' => 'localhost', // lokalda
+            'port' => 6379,
+            'database' => 0,
+        ],
         'cache' => [
             'class' => 'yii\caching\FileCache',
         ],
         'authManager' => [
             'class' => 'yii\rbac\DbManager',
-          //  'defaultRoles' => ['customer'],
+            //  'defaultRoles' => ['customer'],
         ],
         'log' => [
             'traceLevel' => YII_DEBUG ? 3 : 0,

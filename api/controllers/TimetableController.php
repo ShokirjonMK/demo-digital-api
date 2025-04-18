@@ -12,6 +12,7 @@ use common\models\model\Kafedra;
 use common\models\model\Student;
 use common\models\model\StudentTimeTable;
 use common\models\model\Subject;
+use common\services\TimeTableService;
 use Exception;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use yii\web\UploadedFile;
@@ -122,10 +123,64 @@ class TimeTableController extends ApiActiveController
         // return $sheetDatas;
     }
 
-
     public function actionIndex($lang)
     {
         $model = new TimeTable();
+        $query = $model->find()->andWhere(['is_deleted' => 0]);
+
+        $student = TimeTableService::getCurrentStudent();
+        $archived = Yii::$app->request->get('archived');
+        $this_year = Yii::$app->request->get('this_year');
+
+        if ($this_year) {
+            $query->andWhere(['in', 'edu_year_id', TimeTableService::getActiveEduYearIds()]);
+        } elseif ($archived) {
+            $query->andWhere(['archived' => 1]);
+        } else {
+            $query->andWhere(['archived' => 0]);
+        }
+
+        if (isRole('student') && $student) {
+            $query->andWhere(['in', 'edu_semester_id', TimeTableService::getSemestersByPlan($student->edu_plan_id)]);
+            $query->andWhere(['language_id' => $student->edu_lang_id]);
+        } elseif (isRole('teacher') && !isRole('mudir') && !isRole('dean')) {
+            $query->andFilterWhere(['teacher_user_id' => current_user_id()]);
+        }
+
+        $facultyId = Yii::$app->request->get('faculty_id');
+        if ($facultyId) {
+            $kafedra_ids = TimeTableService::getKafedraIdsByFaculty($facultyId);
+            $subject_ids = TimeTableService::getSubjectIdsByKafedraIds($kafedra_ids);
+            $query->andFilterWhere(['in', 'subject_id', $subject_ids]);
+        } 
+
+        $query = $this->filterAll($query, $model);
+        $query = $this->sort($query);
+        $data = $this->getData($query);
+
+        return $this->response(1, _e('Success'), $data);
+    }
+
+
+
+    public function actionIndex1($lang)
+    {
+        $model = new TimeTable();
+
+
+        // Yii::$app->redis->set('mykey', 'myvalue');
+        // $value = Yii::$app->redis->get('mykey');
+        // // dd($value);
+
+        // Yii::$app->redis->hset('user:1', 'name', 'John');
+        // Yii::$app->redis->hset('user:1', 'email', 'john@example.com');
+
+        // Yii::$app->redis->hset('user:2', 'name', 'John2');
+        // Yii::$app->redis->hset('user:2', 'email', 'john2@example.com');
+
+        // $userData = Yii::$app->redis->hgetall('user:2');
+        // dd($userData);
+
 
         $archived = Yii::$app->request->get('archived');
         $this_year = Yii::$app->request->get('this_year');
@@ -171,7 +226,7 @@ class TimeTableController extends ApiActiveController
         }
 
         // Apply teacher filter
-        if (isRole('teacher') && !isRole('mudir') && !isRole('dean') && !isRole('edu_quality')&& !isRole('time_table')) {
+        if (isRole('teacher') && !isRole('mudir') && !isRole('dean') && !isRole('edu_quality') && !isRole('time_table')) {
             $query->andFilterWhere(['teacher_user_id' => current_user_id()]);
         }
 
